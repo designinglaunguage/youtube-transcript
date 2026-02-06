@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Transcript</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #fafafa;
+            --bg-secondary: #ffffff;
+            --bg-surface: #f4f4f5;
+            --border: #e4e4e7;
+            --text-primary: #18181b;
+            --text-secondary: #71717a;
+            --text-tertiary: #a1a1aa;
+            --accent: #4f46e5;
+            --accent-hover: #4338ca;
+            --accent-light: rgba(79, 70, 229, 0.08);
+            --error: #ef4444;
+            --error-light: rgba(239, 68, 68, 0.08);
+            --success: #16a34a;
+            --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --radius: 8px;
+            --transition: 200ms ease;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-primary: #111113;
+                --bg-secondary: #1b1b1f;
+                --bg-surface: #232328;
+                --border: #2e2e35;
+                --text-primary: #ededef;
+                --text-secondary: #8f8f96;
+                --text-tertiary: #5c5c63;
+                --accent: #6366f1;
+                --accent-hover: #818cf8;
+                --accent-light: rgba(99, 102, 241, 0.1);
+                --error: #f87171;
+                --error-light: rgba(248, 113, 113, 0.1);
+                --success: #4ade80;
+            }
+        }
+
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html {
+            font-size: 16px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            letter-spacing: -0.01em;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 64px 24px 96px;
+        }
+
+        /* Header */
+        header {
+            margin-bottom: 48px;
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+            color: var(--text-primary);
+        }
+
+        header .subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            font-weight: 400;
+        }
+
+        /* Input Section */
+        .input-section {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        textarea {
+            width: 100%;
+            min-height: 160px;
+            padding: 16px;
+            font-family: var(--font-mono);
+            font-size: 14px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            resize: vertical;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        textarea::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        textarea:focus {
+            border-color: var(--accent);
+        }
+
+        /* Options */
+        .options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .option-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .option-label {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Toggle Group */
+        .toggle-group {
+            display: flex;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .toggle-btn {
+            padding: 6px 14px;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .toggle-btn + .toggle-btn {
+            border-left: 1px solid var(--border);
+        }
+
+        .toggle-btn.active {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .toggle-btn:hover:not(.active) {
+            background: var(--accent-light);
+            color: var(--text-primary);
+        }
+
+        /* Custom Checkbox */
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--text-secondary);
+            user-select: none;
+        }
+
+        .checkbox-wrapper input {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .checkbox-custom {
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid var(--border);
+            border-radius: 4px;
+            transition: all var(--transition);
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .checkbox-wrapper:hover .checkbox-custom {
+            border-color: var(--accent);
+        }
+
+        .checkbox-wrapper input:checked + .checkbox-custom {
+            background: var(--accent);
+            border-color: var(--accent);
+        }
+
+        .checkbox-wrapper input:checked + .checkbox-custom::after {
+            content: '';
+            position: absolute;
+            left: 4.5px;
+            top: 1.5px;
+            width: 5px;
+            height: 9px;
+            border: solid #fff;
+            border-width: 0 1.5px 1.5px 0;
+            transform: rotate(45deg);
+        }
+
+        /* Buttons */
+        .btn {
+            font-family: var(--font-sans);
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: all var(--transition);
+            border: none;
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            width: 100%;
+            padding: 12px;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border);
+            padding: 7px 14px;
+            font-size: 13px;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-surface);
+            color: var(--text-primary);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+
+        /* Loading */
+        .loading-section {
+            margin-top: 48px;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+            overflow: hidden;
+        }
+
+        .progress-bar-inner {
+            width: 30%;
+            height: 100%;
+            background: var(--accent);
+            border-radius: 1px;
+            animation: progress 1.5s ease-in-out infinite;
+        }
+
+        @keyframes progress {
+            0% { transform: translateX(-100%); }
+            50% { transform: translateX(200%); }
+            100% { transform: translateX(400%); }
+        }
+
+        .loading-text {
+            margin-top: 16px;
+            font-size: 14px;
+            color: var(--text-secondary);
+            text-align: center;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Results */
+        .results-section {
+            margin-top: 48px;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .results-stats {
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .results-stats .success-count {
+            color: var(--success);
+            font-weight: 600;
+        }
+
+        .results-stats .error-count {
+            color: var(--error);
+            font-weight: 600;
+        }
+
+        .results-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .results-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Result Card */
+        .result-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+            transition: box-shadow var(--transition);
+            animation: fadeIn 0.35s ease forwards;
+            opacity: 0;
+        }
+
+        .result-card:hover {
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .result-card:hover {
+                box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            gap: 12px;
+        }
+
+        .result-card-id {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-secondary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            min-width: 0;
+        }
+
+        .result-card-actions {
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .result-card-content {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            line-height: 1.7;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 320px;
+            overflow-y: auto;
+            padding: 14px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+        }
+
+        .result-card.is-error {
+            border-color: var(--error);
+            background: var(--error-light);
+        }
+
+        .result-card.is-error .result-card-content {
+            color: var(--error);
+            background: transparent;
+            border: none;
+            padding: 0;
+            max-height: none;
+            font-family: var(--font-sans);
+            font-size: 14px;
+        }
+
+        /* Scrollbar */
+        .result-card-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .result-card-content::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .result-card-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 2px;
+        }
+
+        /* Keyboard hint */
+        .keyboard-hint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            text-align: center;
+            margin-top: 8px;
+        }
+
+        kbd {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 2px 5px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+        }
+
+        /* Copy feedback */
+        .btn.copied {
+            color: var(--success);
+            border-color: var(--success);
+        }
+
+        /* Responsive */
+        @media (max-width: 640px) {
+            .container {
+                padding: 32px 16px 64px;
+            }
+
+            header {
+                margin-bottom: 32px;
+            }
+
+            .options {
+                gap: 12px;
+            }
+
+            .results-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>YouTube Transcript</h1>
+            <p class="subtitle">YouTube 영상의 자막을 텍스트로 추출합니다</p>
+        </header>
+
+        <section class="input-section">
+            <textarea id="urlInput" placeholder="YouTube URL을 한 줄에 하나씩 입력하세요 (최대 20개)&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://youtu.be/..."></textarea>
+
+            <div class="options">
+                <div class="option-group">
+                    <span class="option-label">형식</span>
+                    <div class="toggle-group" data-name="format">
+                        <button class="toggle-btn active" data-value="text">Text</button>
+                        <button class="toggle-btn" data-value="json">JSON</button>
+                    </div>
+                </div>
+
+                <div class="option-group">
+                    <span class="option-label">언어</span>
+                    <div class="toggle-group" data-name="language">
+                        <button class="toggle-btn active" data-value="ko">한국어</button>
+                        <button class="toggle-btn" data-value="en">English</button>
+                    </div>
+                </div>
+
+                <div class="option-group">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="denoise">
+                        <span class="checkbox-custom"></span>
+                        <span>노이즈 제거</span>
+                    </label>
+                </div>
+
+                <div class="option-group">
+                    <label class="checkbox-wrapper">
+                        <input type="checkbox" id="metadata" checked>
+                        <span class="checkbox-custom"></span>
+                        <span>메타데이터 포함</span>
+                    </label>
+                </div>
+            </div>
+
+            <button id="extractBtn" class="btn btn-primary">자막 추출</button>
+            <p class="keyboard-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 로 바로 실행</p>
+        </section>
+
+        <div id="loading" class="loading-section" style="display: none;">
+            <div class="progress-bar">
+                <div class="progress-bar-inner"></div>
+            </div>
+            <p class="loading-text">자막을 추출하고 있습니다</p>
+        </div>
+
+        <section id="results" class="results-section" style="display: none;">
+            <div class="results-header">
+                <div class="results-stats" id="stats"></div>
+                <div class="results-actions">
+                    <button class="btn btn-secondary" id="copyAllBtn">전체 복사</button>
+                    <button class="btn btn-secondary" id="downloadAllBtn">전체 다운로드</button>
+                </div>
+            </div>
+            <div id="resultsList" class="results-list"></div>
+        </section>
+    </div>
+
+    <script>
+    (function () {
+        let currentFormat = 'text';
+        let currentLanguage = 'ko';
+        let currentResults = null;
+
+        const $ = (sel) => document.querySelector(sel);
+        const $$ = (sel) => document.querySelectorAll(sel);
+
+        const urlInput = $('#urlInput');
+        const extractBtn = $('#extractBtn');
+        const loading = $('#loading');
+        const resultsSection = $('#results');
+        const resultsList = $('#resultsList');
+        const stats = $('#stats');
+        const copyAllBtn = $('#copyAllBtn');
+        const downloadAllBtn = $('#downloadAllBtn');
+        const denoiseCheckbox = $('#denoise');
+        const metadataCheckbox = $('#metadata');
+
+        // Toggle groups
+        $$('.toggle-group').forEach(function (group) {
+            const name = group.dataset.name;
+            group.querySelectorAll('.toggle-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    group.querySelectorAll('.toggle-btn').forEach(function (b) {
+                        b.classList.remove('active');
+                    });
+                    btn.classList.add('active');
+                    if (name === 'format') currentFormat = btn.dataset.value;
+                    if (name === 'language') currentLanguage = btn.dataset.value;
+                });
+            });
+        });
+
+        // Extract
+        extractBtn.addEventListener('click', handleExtract);
+
+        urlInput.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                handleExtract();
+            }
+        });
+
+        async function handleExtract() {
+            const text = urlInput.value.trim();
+            if (!text) return;
+
+            const urls = text.split('\n').map(function (u) { return u.trim(); }).filter(function (u) { return u; });
+            if (urls.length === 0) return;
+            if (urls.length > 20) {
+                alert('최대 20개의 URL만 입력할 수 있습니다.');
+                return;
+            }
+
+            extractBtn.disabled = true;
+            loading.style.display = 'block';
+            resultsSection.style.display = 'none';
+            resultsList.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/transcripts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        urls: urls,
+                        language: currentLanguage,
+                        denoise: denoiseCheckbox.checked,
+                        format: currentFormat,
+                    }),
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                currentResults = data;
+                renderResults(data);
+            } catch (err) {
+                alert('요청 중 오류가 발생했습니다: ' + err.message);
+            } finally {
+                extractBtn.disabled = false;
+                loading.style.display = 'none';
+            }
+        }
+
+        function renderResults(data) {
+            resultsSection.style.display = 'block';
+
+            let statsHtml = '<span class="success-count">' + data.success_count + '개 성공</span>';
+            if (data.error_count > 0) {
+                statsHtml += ' / <span class="error-count">' + data.error_count + '개 실패</span>';
+            }
+            stats.innerHTML = statsHtml;
+
+            resultsList.innerHTML = '';
+
+            data.results.forEach(function (result, index) {
+                var card = document.createElement('div');
+                card.className = 'result-card' + (result.error ? ' is-error' : '');
+                card.style.animationDelay = (index * 80) + 'ms';
+
+                var displayId = result.video_id || result.url;
+
+                var contentText = '';
+                if (result.error) {
+                    contentText = result.error;
+                } else if (currentFormat === 'json') {
+                    contentText = JSON.stringify(result.transcript, null, 2);
+                } else {
+                    contentText = result.transcript;
+                }
+
+                var actionsHtml = '';
+                if (!result.error) {
+                    actionsHtml = '<div class="result-card-actions">' +
+                        '<button class="btn btn-secondary btn-sm btn-copy" data-index="' + index + '">복사</button>' +
+                        '<button class="btn btn-secondary btn-sm btn-download" data-index="' + index + '">다운로드</button>' +
+                        '</div>';
+                }
+
+                card.innerHTML =
+                    '<div class="result-card-header">' +
+                        '<span class="result-card-id">' + escapeHtml(displayId) + '</span>' +
+                        actionsHtml +
+                    '</div>' +
+                    '<div class="result-card-content">' + escapeHtml(contentText) + '</div>';
+
+                resultsList.appendChild(card);
+            });
+
+            // Bind copy/download
+            $$('.btn-copy').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    copyResult(parseInt(btn.dataset.index), btn);
+                });
+            });
+
+            $$('.btn-download').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    downloadResult(parseInt(btn.dataset.index));
+                });
+            });
+        }
+
+        function getResultText(result) {
+            var includeMetadata = metadataCheckbox.checked;
+
+            if (currentFormat === 'json') {
+                if (includeMetadata) {
+                    return JSON.stringify({
+                        video_id: result.video_id,
+                        url: result.url,
+                        transcript: result.transcript,
+                    }, null, 2);
+                }
+                return JSON.stringify(result.transcript, null, 2);
+            }
+
+            var text = '';
+            if (includeMetadata) {
+                if (result.video_id) text += 'Video ID: ' + result.video_id + '\n';
+                if (result.url) text += 'URL: ' + result.url + '\n';
+                text += '\n';
+            }
+            text += result.transcript;
+            return text;
+        }
+
+        async function copyResult(index, btn) {
+            var result = currentResults.results[index];
+            var text = getResultText(result);
+
+            try {
+                await navigator.clipboard.writeText(text);
+                showCopied(btn);
+            } catch (err) {
+                fallbackCopy(text);
+                showCopied(btn);
+            }
+        }
+
+        function downloadResult(index) {
+            var result = currentResults.results[index];
+            var text = getResultText(result);
+            var ext = currentFormat === 'json' ? 'json' : 'txt';
+            var filename = (result.video_id || 'transcript') + '.' + ext;
+            var mimeType = currentFormat === 'json' ? 'application/json' : 'text/plain';
+            downloadFile(filename, text, mimeType);
+        }
+
+        // Copy all
+        copyAllBtn.addEventListener('click', async function () {
+            if (!currentResults) return;
+
+            var successResults = currentResults.results.filter(function (r) { return !r.error; });
+            var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
+
+            try {
+                await navigator.clipboard.writeText(allText);
+                showCopied(copyAllBtn);
+            } catch (err) {
+                fallbackCopy(allText);
+                showCopied(copyAllBtn);
+            }
+        });
+
+        // Download all
+        downloadAllBtn.addEventListener('click', function () {
+            if (!currentResults) return;
+
+            var successResults = currentResults.results.filter(function (r) { return !r.error; });
+
+            if (currentFormat === 'json') {
+                var includeMetadata = metadataCheckbox.checked;
+                var data = successResults.map(function (r) {
+                    if (includeMetadata) {
+                        return { video_id: r.video_id, url: r.url, transcript: r.transcript };
+                    }
+                    return r.transcript;
+                });
+                downloadFile('transcripts.json', JSON.stringify(data, null, 2), 'application/json');
+            } else {
+                var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
+                downloadFile('transcripts.txt', allText, 'text/plain');
+            }
+        });
+
+        function downloadFile(filename, content, mimeType) {
+            var blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function showCopied(btn) {
+            var original = btn.textContent;
+            btn.textContent = '복사됨 ✓';
+            btn.classList.add('copied');
+            setTimeout(function () {
+                btn.textContent = original;
+                btn.classList.remove('copied');
+            }, 1500);
+        }
+
+        function fallbackCopy(text) {
+            var textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.opacity = '0';
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+        }
+
+        function escapeHtml(text) {
+            var div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    })();
+    </script>
+</body>
+</html>
