@@ -1,4 +1,6 @@
 import logging
+import json
+import urllib.request
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,14 +32,17 @@ class TranscriptRequest(BaseModel):
     language: str = "ko"
     denoise: bool = False
     format: str = "text"
+    keep_newlines: bool = False
 
 
 def extract_video_id(url: str) -> str | None:
     url = url.strip()
     if not url:
         return None
+    # Remove tracking parameters
+    url = re.sub(r'[&?](si|feature|utm_\w+|fbclid|gclid)=[^&]*', '', url)
     patterns = [
-        r"(?:youtube\.com/watch\?.*v=)([a-zA-Z0-9_-]{11})",
+        r"(?:(?:m\.)?youtube\.com/watch\?.*v=)([a-zA-Z0-9_-]{11})",
         r"(?:youtu\.be/)([a-zA-Z0-9_-]{11})",
         r"(?:youtube\.com/embed/)([a-zA-Z0-9_-]{11})",
         r"(?:youtube\.com/shorts/)([a-zA-Z0-9_-]{11})",
@@ -48,6 +53,17 @@ def extract_video_id(url: str) -> str | None:
         if match:
             return match.group(1)
     return None
+
+
+def _fetch_title(video_id: str) -> str | None:
+    try:
+        oembed_url = f"https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v={video_id}&format=json"
+        req = urllib.request.Request(oembed_url)
+        with urllib.request.urlopen(req, timeout=5) as response:
+            data = json.loads(response.read().decode("utf-8"))
+            return data.get("title")
+    except Exception:
+        return None
 
 
 KOREAN_FILLERS = {
@@ -80,7 +96,7 @@ def denoise_text(text: str) -> str:
     return "\n".join(result)
 
 
-def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str) -> dict:
+def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, keep_newlines: bool = False) -> dict:
     languages = [language]
     if language == "ko":
         languages.append("en")
@@ -113,9 +129,12 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str) -> 
                     entries = deduped
                 return {"transcript": entries, "error": None}
             else:
-                text = "\n".join(e.text for e in data)
+                separator = "\n" if keep_newlines else " "
+                text = separator.join(e.text for e in data)
                 if denoise:
                     text = denoise_text(text)
+                if not keep_newlines:
+                    text = " ".join(text.split())
                 return {"transcript": text, "error": None}
         except Exception as e:
             last_error = str(e)
@@ -162,22 +181,28 @@ async def get_transcripts(request: TranscriptRequest):
             return {
                 "url": url,
                 "video_id": None,
+                "title": None,
                 "transcript": None,
                 "error": "유효하지 않은 YouTube URL입니다.",
             }
 
-        result = await loop.run_in_executor(
-            _executor,
-            _fetch_transcript,
-            video_id,
-            request.language,
-            request.denoise,
-            request.format,
+        result, title = await asyncio.gather(
+            loop.run_in_executor(
+                _executor,
+                _fetch_transcript,
+                video_id,
+                request.language,
+                request.denoise,
+                request.format,
+                request.keep_newlines,
+            ),
+            loop.run_in_executor(_executor, _fetch_title, video_id),
         )
 
         return {
             "url": url,
             "video_id": video_id,
+            "title": title,
             "transcript": result["transcript"],
             "error": result["error"],
         }
