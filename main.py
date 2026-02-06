@@ -1,11 +1,16 @@
+import logging
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
+import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Transcript Extractor")
 
@@ -52,6 +57,9 @@ KOREAN_FILLERS = {
 
 NOISE_PATTERN = re.compile(r"^\[.*\]$")
 
+MAX_RETRIES = 3
+RETRY_DELAY = 1.5
+
 
 def denoise_text(text: str) -> str:
     lines = text.split("\n")
@@ -73,49 +81,62 @@ def denoise_text(text: str) -> str:
 
 
 def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str) -> dict:
-    try:
-        languages = [language]
-        if language == "ko":
-            languages.append("en")
-        elif language == "en":
-            languages.append("ko")
+    languages = [language]
+    if language == "ko":
+        languages.append("en")
+    elif language == "en":
+        languages.append("ko")
 
-        data = _yt_api.fetch(video_id, languages=languages)
+    last_error = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            data = _yt_api.fetch(video_id, languages=languages)
 
-        if fmt == "json":
-            entries = [
-                {"text": e.text, "start": e.start, "duration": e.duration}
-                for e in data
-            ]
-            if denoise:
-                deduped = []
-                prev_text = None
-                for entry in entries:
-                    t = entry["text"].strip()
-                    if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
-                        continue
-                    if t == prev_text:
-                        continue
-                    if t:
-                        entry["text"] = t
-                        deduped.append(entry)
-                        prev_text = t
-                entries = deduped
-            return {"transcript": entries, "error": None}
-        else:
-            text = "\n".join(e.text for e in data)
-            if denoise:
-                text = denoise_text(text)
-            return {"transcript": text, "error": None}
-    except Exception as e:
-        error_msg = str(e)
-        if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
-            error_msg = "자막을 찾을 수 없습니다."
-        elif "disabled" in error_msg.lower():
-            error_msg = "이 영상은 자막이 비활성화되어 있습니다."
-        elif "unavailable" in error_msg.lower():
-            error_msg = "영상을 찾을 수 없습니다."
-        return {"transcript": None, "error": error_msg}
+            if fmt == "json":
+                entries = [
+                    {"text": e.text, "start": e.start, "duration": e.duration}
+                    for e in data
+                ]
+                if denoise:
+                    deduped = []
+                    prev_text = None
+                    for entry in entries:
+                        t = entry["text"].strip()
+                        if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
+                            continue
+                        if t == prev_text:
+                            continue
+                        if t:
+                            entry["text"] = t
+                            deduped.append(entry)
+                            prev_text = t
+                    entries = deduped
+                return {"transcript": entries, "error": None}
+            else:
+                text = "\n".join(e.text for e in data)
+                if denoise:
+                    text = denoise_text(text)
+                return {"transcript": text, "error": None}
+        except Exception as e:
+            last_error = str(e)
+            logger.error(f"Attempt {attempt}/{MAX_RETRIES} failed for {video_id}: {last_error}")
+
+            # Don't retry if video genuinely has no subtitles
+            if "No transcripts" in last_error or "disabled" in last_error.lower():
+                break
+
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+
+    # All retries exhausted or non-retryable error
+    error_msg = last_error or "Unknown error"
+    if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
+        error_msg = f"자막을 찾을 수 없습니다. ({error_msg[:120]})"
+    elif "disabled" in error_msg.lower():
+        error_msg = "이 영상은 자막이 비활성화되어 있습니다."
+    elif "unavailable" in error_msg.lower():
+        error_msg = "영상을 찾을 수 없습니다."
+    return {"transcript": None, "error": error_msg}
 
 
 @app.post("/api/transcripts")
