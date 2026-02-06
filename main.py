@@ -160,10 +160,10 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
 
 @app.post("/api/transcripts")
 async def get_transcripts(request: TranscriptRequest):
-    if len(request.urls) > 20:
+    if len(request.urls) > 50:
         return JSONResponse(
             status_code=400,
-            content={"error": "최대 20개의 URL만 처리할 수 있습니다."},
+            content={"error": "최대 50개의 URL만 처리할 수 있습니다."},
         )
 
     urls = [u.strip() for u in request.urls if u.strip()]
