@@ -13,19 +13,27 @@
             --bg-primary: #fafafa;
             --bg-secondary: #ffffff;
             --bg-surface: #f4f4f5;
+            --bg-elevated: #ffffff;
             --border: #e4e4e7;
+            --border-light: #f0f0f2;
             --text-primary: #18181b;
             --text-secondary: #71717a;
             --text-tertiary: #a1a1aa;
             --accent: #4f46e5;
             --accent-hover: #4338ca;
-            --accent-light: rgba(79, 70, 229, 0.08);
+            --accent-subtle: rgba(79, 70, 229, 0.06);
+            --accent-light: rgba(79, 70, 229, 0.10);
             --error: #ef4444;
-            --error-light: rgba(239, 68, 68, 0.08);
+            --error-light: rgba(239, 68, 68, 0.06);
+            --error-border: rgba(239, 68, 68, 0.2);
             --success: #16a34a;
+            --success-light: rgba(22, 163, 74, 0.06);
+            --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
             --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
             --radius: 8px;
+            --radius-lg: 12px;
             --transition: 200ms ease;
         }
 
@@ -33,17 +41,24 @@
             :root {
                 --bg-primary: #111113;
                 --bg-secondary: #1b1b1f;
-                --bg-surface: #232328;
+                --bg-surface: #1b1b1f;
+                --bg-elevated: #232328;
                 --border: #2e2e35;
+                --border-light: #252529;
                 --text-primary: #ededef;
                 --text-secondary: #8f8f96;
                 --text-tertiary: #5c5c63;
                 --accent: #6366f1;
                 --accent-hover: #818cf8;
-                --accent-light: rgba(99, 102, 241, 0.1);
+                --accent-subtle: rgba(99, 102, 241, 0.06);
+                --accent-light: rgba(99, 102, 241, 0.12);
                 --error: #f87171;
-                --error-light: rgba(248, 113, 113, 0.1);
+                --error-light: rgba(248, 113, 113, 0.08);
+                --error-border: rgba(248, 113, 113, 0.2);
                 --success: #4ade80;
+                --success-light: rgba(74, 222, 128, 0.08);
+                --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+                --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
             }
         }
 
@@ -64,72 +79,123 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             line-height: 1.6;
-            letter-spacing: -0.01em;
+            letter-spacing: -0.011em;
             min-height: 100vh;
+        }
+
+        ::selection {
+            background: var(--accent-light);
+            color: var(--text-primary);
         }
 
         .container {
             max-width: 680px;
             margin: 0 auto;
-            padding: 64px 24px 96px;
+            padding: 72px 24px 120px;
         }
 
-        /* Header */
+        /* ── Header ── */
         header {
-            margin-bottom: 48px;
+            margin-bottom: 56px;
         }
 
         header h1 {
             font-size: 28px;
             font-weight: 700;
-            letter-spacing: -0.03em;
-            line-height: 1.2;
+            letter-spacing: -0.035em;
+            line-height: 1.15;
             color: var(--text-primary);
         }
 
         header .subtitle {
-            font-size: 14px;
+            font-size: 15px;
             color: var(--text-secondary);
-            margin-top: 8px;
+            margin-top: 10px;
             font-weight: 400;
+            line-height: 1.5;
         }
 
-        /* Input Section */
+        /* ── Section Label ── */
+        .section-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 12px;
+        }
+
+        /* ── Input Section ── */
         .input-section {
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 24px;
+        }
+
+        .textarea-wrapper {
+            position: relative;
         }
 
         textarea {
             width: 100%;
-            min-height: 160px;
-            padding: 16px;
+            min-height: 180px;
+            padding: 16px 18px;
             font-family: var(--font-mono);
-            font-size: 14px;
-            line-height: 1.7;
+            font-size: 13px;
+            line-height: 1.8;
             color: var(--text-primary);
-            background: var(--bg-surface);
+            background: var(--bg-elevated);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             resize: vertical;
             outline: none;
-            transition: border-color var(--transition);
+            transition: border-color var(--transition), box-shadow var(--transition);
         }
 
         textarea::placeholder {
             color: var(--text-tertiary);
+            font-size: 13px;
         }
 
         textarea:focus {
             border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-subtle);
         }
 
-        /* Options */
+        .url-count {
+            position: absolute;
+            bottom: 10px;
+            right: 12px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-tertiary);
+            background: var(--bg-elevated);
+            padding: 2px 6px;
+            border-radius: 4px;
+            pointer-events: none;
+            transition: color var(--transition);
+        }
+
+        .url-count.has-urls {
+            color: var(--text-secondary);
+        }
+
+        .url-count.limit {
+            color: var(--error);
+        }
+
+        /* ── Options Panel ── */
+        .options-panel {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+        }
+
         .options {
             display: flex;
             flex-wrap: wrap;
-            gap: 16px;
+            gap: 20px;
             align-items: center;
         }
 
@@ -139,49 +205,58 @@
             gap: 8px;
         }
 
-        .option-label {
-            font-size: 12px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
+        .option-divider {
+            width: 1px;
+            height: 20px;
+            background: var(--border);
+            flex-shrink: 0;
         }
 
-        /* Toggle Group */
+        .option-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            white-space: nowrap;
+        }
+
+        /* ── Toggle Group ── */
         .toggle-group {
             display: flex;
+            background: var(--bg-surface);
             border: 1px solid var(--border);
-            border-radius: var(--radius);
-            overflow: hidden;
+            border-radius: 6px;
+            padding: 2px;
+            gap: 2px;
         }
 
         .toggle-btn {
-            padding: 6px 14px;
+            padding: 5px 12px;
             font-family: var(--font-sans);
             font-size: 13px;
             font-weight: 500;
             color: var(--text-secondary);
             background: transparent;
             border: none;
+            border-radius: 4px;
             cursor: pointer;
             transition: all var(--transition);
-        }
-
-        .toggle-btn + .toggle-btn {
-            border-left: 1px solid var(--border);
+            white-space: nowrap;
         }
 
         .toggle-btn.active {
             background: var(--accent);
             color: #fff;
+            box-shadow: var(--shadow-sm);
         }
 
         .toggle-btn:hover:not(.active) {
-            background: var(--accent-light);
             color: var(--text-primary);
+            background: var(--accent-subtle);
         }
 
-        /* Custom Checkbox */
+        /* ── Custom Checkbox ── */
         .checkbox-wrapper {
             display: flex;
             align-items: center;
@@ -190,6 +265,11 @@
             font-size: 13px;
             color: var(--text-secondary);
             user-select: none;
+            transition: color var(--transition);
+        }
+
+        .checkbox-wrapper:hover {
+            color: var(--text-primary);
         }
 
         .checkbox-wrapper input {
@@ -230,7 +310,7 @@
             transform: rotate(45deg);
         }
 
-        /* Buttons */
+        /* ── Buttons ── */
         .btn {
             font-family: var(--font-sans);
             font-size: 14px;
@@ -240,17 +320,29 @@
             transition: all var(--transition);
             border: none;
             outline: none;
+            white-space: nowrap;
+        }
+
+        .btn:focus-visible {
+            box-shadow: 0 0 0 3px var(--accent-subtle);
         }
 
         .btn-primary {
             background: var(--accent);
             color: #fff;
             width: 100%;
-            padding: 12px;
+            padding: 13px;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: -0.01em;
         }
 
-        .btn-primary:hover {
+        .btn-primary:hover:not(:disabled) {
             background: var(--accent-hover);
+        }
+
+        .btn-primary:active:not(:disabled) {
+            transform: scale(0.995);
         }
 
         .btn-primary:disabled {
@@ -259,7 +351,7 @@
         }
 
         .btn-secondary {
-            background: transparent;
+            background: var(--bg-elevated);
             color: var(--text-secondary);
             border: 1px solid var(--border);
             padding: 7px 14px;
@@ -269,6 +361,7 @@
         .btn-secondary:hover {
             background: var(--bg-surface);
             color: var(--text-primary);
+            border-color: var(--text-tertiary);
         }
 
         .btn-sm {
@@ -276,9 +369,43 @@
             font-size: 12px;
         }
 
-        /* Loading */
+        .btn.copied {
+            color: var(--success);
+            border-color: var(--success);
+            background: var(--success-light);
+        }
+
+        .keyboard-hint {
+            font-size: 12px;
+            color: var(--text-tertiary);
+            text-align: center;
+            margin-top: -4px;
+        }
+
+        kbd {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            padding: 2px 6px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-shadow: 0 1px 0 var(--border);
+        }
+
+        /* ── Divider ── */
+        .section-divider {
+            height: 1px;
+            background: var(--border-light);
+            margin: 48px 0;
+        }
+
+        /* ── Loading ── */
         .loading-section {
             margin-top: 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
         }
 
         .progress-bar {
@@ -290,33 +417,30 @@
         }
 
         .progress-bar-inner {
-            width: 30%;
+            width: 40%;
             height: 100%;
             background: var(--accent);
             border-radius: 1px;
-            animation: progress 1.5s ease-in-out infinite;
+            animation: progress 1.4s ease-in-out infinite;
         }
 
         @keyframes progress {
             0% { transform: translateX(-100%); }
-            50% { transform: translateX(200%); }
-            100% { transform: translateX(400%); }
+            100% { transform: translateX(350%); }
         }
 
         .loading-text {
-            margin-top: 16px;
             font-size: 14px;
             color: var(--text-secondary);
-            text-align: center;
             animation: pulse 2s ease-in-out infinite;
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
+            50% { opacity: 0.35; }
         }
 
-        /* Results */
+        /* ── Results ── */
         .results-section {
             margin-top: 48px;
         }
@@ -325,12 +449,15 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-light);
         }
 
         .results-stats {
             font-size: 14px;
             color: var(--text-secondary);
+            font-weight: 500;
         }
 
         .results-stats .success-count {
@@ -354,31 +481,26 @@
             gap: 16px;
         }
 
-        /* Result Card */
+        /* ── Result Card ── */
         .result-card {
-            background: var(--bg-surface);
+            background: var(--bg-elevated);
             border: 1px solid var(--border);
             border-radius: var(--radius);
             padding: 20px;
-            transition: box-shadow var(--transition);
+            transition: box-shadow var(--transition), border-color var(--transition);
             animation: fadeIn 0.35s ease forwards;
             opacity: 0;
         }
 
         .result-card:hover {
-            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.04);
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .result-card:hover {
-                box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
-            }
+            box-shadow: var(--shadow-md);
+            border-color: var(--text-tertiary);
         }
 
         @keyframes fadeIn {
             from {
                 opacity: 0;
-                transform: translateY(8px);
+                transform: translateY(10px);
             }
             to {
                 opacity: 1;
@@ -390,8 +512,26 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 14px;
             gap: 12px;
+        }
+
+        .result-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+        }
+
+        .result-card-index {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-tertiary);
+            background: var(--bg-surface);
+            padding: 2px 7px;
+            border-radius: 4px;
+            flex-shrink: 0;
         }
 
         .result-card-id {
@@ -404,6 +544,15 @@
             min-width: 0;
         }
 
+        a.result-card-id {
+            text-decoration: none;
+            transition: color var(--transition);
+        }
+
+        a.result-card-id:hover {
+            color: var(--accent);
+        }
+
         .result-card-actions {
             display: flex;
             gap: 6px;
@@ -413,20 +562,20 @@
         .result-card-content {
             font-family: var(--font-mono);
             font-size: 13px;
-            line-height: 1.7;
+            line-height: 1.75;
             color: var(--text-primary);
             white-space: pre-wrap;
             word-break: break-word;
-            max-height: 320px;
+            max-height: 360px;
             overflow-y: auto;
-            padding: 14px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
+            padding: 16px;
+            background: var(--bg-surface);
+            border: 1px solid var(--border-light);
             border-radius: 6px;
         }
 
         .result-card.is-error {
-            border-color: var(--error);
+            border-color: var(--error-border);
             background: var(--error-light);
         }
 
@@ -438,6 +587,7 @@
             max-height: none;
             font-family: var(--font-sans);
             font-size: 14px;
+            line-height: 1.6;
         }
 
         /* Scrollbar */
@@ -454,47 +604,63 @@
             border-radius: 2px;
         }
 
-        /* Keyboard hint */
-        .keyboard-hint {
+        .result-card-content::-webkit-scrollbar-thumb:hover {
+            background: var(--text-tertiary);
+        }
+
+        /* ── Footer ── */
+        .footer {
+            margin-top: 64px;
+            padding-top: 24px;
+            border-top: 1px solid var(--border-light);
+            text-align: center;
+        }
+
+        .footer p {
             font-size: 12px;
             color: var(--text-tertiary);
-            text-align: center;
-            margin-top: 8px;
+            line-height: 1.6;
         }
 
-        kbd {
-            font-family: var(--font-mono);
-            font-size: 11px;
-            padding: 2px 5px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-        }
-
-        /* Copy feedback */
-        .btn.copied {
-            color: var(--success);
-            border-color: var(--success);
-        }
-
-        /* Responsive */
+        /* ── Responsive ── */
         @media (max-width: 640px) {
             .container {
-                padding: 32px 16px 64px;
+                padding: 40px 16px 80px;
             }
 
             header {
-                margin-bottom: 32px;
+                margin-bottom: 40px;
+            }
+
+            header h1 {
+                font-size: 24px;
+            }
+
+            .options-panel {
+                padding: 14px 16px;
             }
 
             .options {
-                gap: 12px;
+                gap: 14px;
+            }
+
+            .option-divider {
+                display: none;
             }
 
             .results-header {
                 flex-direction: column;
                 align-items: flex-start;
                 gap: 12px;
+            }
+
+            .result-card {
+                padding: 16px;
+            }
+
+            .result-card-content {
+                padding: 12px;
+                max-height: 280px;
             }
         }
     </style>
@@ -507,44 +673,61 @@
         </header>
 
         <section class="input-section">
-            <textarea id="urlInput" placeholder="YouTube URL을 한 줄에 하나씩 입력하세요 (최대 20개)&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://youtu.be/..."></textarea>
-
-            <div class="options">
-                <div class="option-group">
-                    <span class="option-label">형식</span>
-                    <div class="toggle-group" data-name="format">
-                        <button class="toggle-btn active" data-value="text">Text</button>
-                        <button class="toggle-btn" data-value="json">JSON</button>
-                    </div>
-                </div>
-
-                <div class="option-group">
-                    <span class="option-label">언어</span>
-                    <div class="toggle-group" data-name="language">
-                        <button class="toggle-btn active" data-value="ko">한국어</button>
-                        <button class="toggle-btn" data-value="en">English</button>
-                    </div>
-                </div>
-
-                <div class="option-group">
-                    <label class="checkbox-wrapper">
-                        <input type="checkbox" id="denoise">
-                        <span class="checkbox-custom"></span>
-                        <span>노이즈 제거</span>
-                    </label>
-                </div>
-
-                <div class="option-group">
-                    <label class="checkbox-wrapper">
-                        <input type="checkbox" id="metadata" checked>
-                        <span class="checkbox-custom"></span>
-                        <span>메타데이터 포함</span>
-                    </label>
+            <div>
+                <p class="section-label">URL 입력</p>
+                <div class="textarea-wrapper">
+                    <textarea id="urlInput" placeholder="YouTube URL을 한 줄에 하나씩 입력하세요&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://youtu.be/..." spellcheck="false"></textarea>
+                    <span class="url-count" id="urlCount">0 / 20</span>
                 </div>
             </div>
 
-            <button id="extractBtn" class="btn btn-primary">자막 추출</button>
-            <p class="keyboard-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 로 바로 실행</p>
+            <div>
+                <p class="section-label">옵션</p>
+                <div class="options-panel">
+                    <div class="options">
+                        <div class="option-group">
+                            <span class="option-label">형식</span>
+                            <div class="toggle-group" data-name="format">
+                                <button class="toggle-btn active" data-value="text">Text</button>
+                                <button class="toggle-btn" data-value="json">JSON</button>
+                            </div>
+                        </div>
+
+                        <div class="option-divider"></div>
+
+                        <div class="option-group">
+                            <span class="option-label">언어</span>
+                            <div class="toggle-group" data-name="language">
+                                <button class="toggle-btn active" data-value="ko">한국어</button>
+                                <button class="toggle-btn" data-value="en">English</button>
+                            </div>
+                        </div>
+
+                        <div class="option-divider"></div>
+
+                        <div class="option-group">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="denoise">
+                                <span class="checkbox-custom"></span>
+                                <span>노이즈 제거</span>
+                            </label>
+                        </div>
+
+                        <div class="option-group">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="metadata" checked>
+                                <span class="checkbox-custom"></span>
+                                <span>메타데이터 포함</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <button id="extractBtn" class="btn btn-primary">자막 추출</button>
+                <p class="keyboard-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></p>
+            </div>
         </section>
 
         <div id="loading" class="loading-section" style="display: none;">
@@ -564,31 +747,51 @@
             </div>
             <div id="resultsList" class="results-list"></div>
         </section>
+
+        <div class="footer" id="footer" style="display: none;">
+            <p>youtube-transcript-api &middot; 자막 원문만 추출합니다</p>
+        </div>
     </div>
 
     <script>
     (function () {
-        let currentFormat = 'text';
-        let currentLanguage = 'ko';
-        let currentResults = null;
+        var currentFormat = 'text';
+        var currentLanguage = 'ko';
+        var currentResults = null;
 
-        const $ = (sel) => document.querySelector(sel);
-        const $$ = (sel) => document.querySelectorAll(sel);
+        var $ = function (sel) { return document.querySelector(sel); };
+        var $$ = function (sel) { return document.querySelectorAll(sel); };
 
-        const urlInput = $('#urlInput');
-        const extractBtn = $('#extractBtn');
-        const loading = $('#loading');
-        const resultsSection = $('#results');
-        const resultsList = $('#resultsList');
-        const stats = $('#stats');
-        const copyAllBtn = $('#copyAllBtn');
-        const downloadAllBtn = $('#downloadAllBtn');
-        const denoiseCheckbox = $('#denoise');
-        const metadataCheckbox = $('#metadata');
+        var urlInput = $('#urlInput');
+        var extractBtn = $('#extractBtn');
+        var loading = $('#loading');
+        var resultsSection = $('#results');
+        var resultsList = $('#resultsList');
+        var stats = $('#stats');
+        var copyAllBtn = $('#copyAllBtn');
+        var downloadAllBtn = $('#downloadAllBtn');
+        var denoiseCheckbox = $('#denoise');
+        var metadataCheckbox = $('#metadata');
+        var urlCount = $('#urlCount');
+        var footer = $('#footer');
+
+        // URL count
+        function updateUrlCount() {
+            var lines = urlInput.value.split('\n').filter(function (l) { return l.trim(); });
+            var count = lines.length;
+            if (!urlInput.value.trim()) count = 0;
+            urlCount.textContent = count + ' / 20';
+            urlCount.className = 'url-count';
+            if (count > 0) urlCount.classList.add('has-urls');
+            if (count > 20) urlCount.classList.add('limit');
+        }
+
+        urlInput.addEventListener('input', updateUrlCount);
+        updateUrlCount();
 
         // Toggle groups
         $$('.toggle-group').forEach(function (group) {
-            const name = group.dataset.name;
+            var name = group.dataset.name;
             group.querySelectorAll('.toggle-btn').forEach(function (btn) {
                 btn.addEventListener('click', function () {
                     group.querySelectorAll('.toggle-btn').forEach(function (b) {
@@ -612,10 +815,10 @@
         });
 
         async function handleExtract() {
-            const text = urlInput.value.trim();
+            var text = urlInput.value.trim();
             if (!text) return;
 
-            const urls = text.split('\n').map(function (u) { return u.trim(); }).filter(function (u) { return u; });
+            var urls = text.split('\n').map(function (u) { return u.trim(); }).filter(function (u) { return u; });
             if (urls.length === 0) return;
             if (urls.length > 20) {
                 alert('최대 20개의 URL만 입력할 수 있습니다.');
@@ -623,12 +826,13 @@
             }
 
             extractBtn.disabled = true;
-            loading.style.display = 'block';
+            loading.style.display = 'flex';
             resultsSection.style.display = 'none';
+            footer.style.display = 'none';
             resultsList.innerHTML = '';
 
             try {
-                const response = await fetch('/api/transcripts', {
+                var response = await fetch('/api/transcripts', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -639,7 +843,7 @@
                     }),
                 });
 
-                const data = await response.json();
+                var data = await response.json();
 
                 if (data.error) {
                     alert(data.error);
@@ -658,10 +862,11 @@
 
         function renderResults(data) {
             resultsSection.style.display = 'block';
+            footer.style.display = 'block';
 
-            let statsHtml = '<span class="success-count">' + data.success_count + '개 성공</span>';
+            var statsHtml = '<span class="success-count">' + data.success_count + '개 성공</span>';
             if (data.error_count > 0) {
-                statsHtml += ' / <span class="error-count">' + data.error_count + '개 실패</span>';
+                statsHtml += ' &middot; <span class="error-count">' + data.error_count + '개 실패</span>';
             }
             stats.innerHTML = statsHtml;
 
@@ -671,8 +876,6 @@
                 var card = document.createElement('div');
                 card.className = 'result-card' + (result.error ? ' is-error' : '');
                 card.style.animationDelay = (index * 80) + 'ms';
-
-                var displayId = result.video_id || result.url;
 
                 var contentText = '';
                 if (result.error) {
@@ -691,9 +894,19 @@
                         '</div>';
                 }
 
+                var idHtml = '';
+                if (result.video_id) {
+                    idHtml = '<a class="result-card-id" href="https://youtube.com/watch?v=' + encodeURIComponent(result.video_id) + '" target="_blank" rel="noopener">' + escapeHtml(result.video_id) + '</a>';
+                } else {
+                    idHtml = '<span class="result-card-id">' + escapeHtml(result.url) + '</span>';
+                }
+
                 card.innerHTML =
                     '<div class="result-card-header">' +
-                        '<span class="result-card-id">' + escapeHtml(displayId) + '</span>' +
+                        '<div class="result-card-meta">' +
+                            '<span class="result-card-index">#' + (index + 1) + '</span>' +
+                            idHtml +
+                        '</div>' +
                         actionsHtml +
                     '</div>' +
                     '<div class="result-card-content">' + escapeHtml(contentText) + '</div>';
@@ -821,14 +1034,14 @@
         }
 
         function fallbackCopy(text) {
-            var textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.opacity = '0';
-            document.body.appendChild(textarea);
-            textarea.select();
+            var ta = document.createElement('textarea');
+            ta.value = text;
+            ta.style.position = 'fixed';
+            ta.style.opacity = '0';
+            document.body.appendChild(ta);
+            ta.select();
             document.execCommand('copy');
-            document.body.removeChild(textarea);
+            document.body.removeChild(ta);
         }
 
         function escapeHtml(text) {
