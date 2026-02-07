@@ -1173,6 +1173,9 @@
             resultsSection.style.display = 'none';
             resultsList.innerHTML = '';
 
+            var controller = new AbortController();
+            var timeoutId = setTimeout(function() { controller.abort(); }, 90000);
+
             try {
                 var response = await fetch('/api/transcripts', {
                     method: 'POST',
@@ -1183,7 +1186,10 @@
                         denoise: denoiseCheckbox.checked,
                         format: currentFormat,
                     }),
+                    signal: controller.signal,
                 });
+
+                clearTimeout(timeoutId);
 
                 var data = await response.json();
 
@@ -1196,11 +1202,40 @@
                 renderResults(data);
                 addToHistory(data.results);
             } catch (err) {
-                alert(t('requestError') + err.message);
+                clearTimeout(timeoutId);
+                var msg;
+                if (err.name === 'AbortError') {
+                    msg = currentLang === 'ko'
+                        ? '요청 시간이 초과되었습니다. URL 수를 줄이거나 다시 시도해주세요.'
+                        : 'Request timed out. Try fewer URLs or retry.';
+                } else if (!navigator.onLine) {
+                    msg = currentLang === 'ko'
+                        ? '인터넷 연결을 확인해주세요.'
+                        : 'Please check your internet connection.';
+                } else {
+                    msg = currentLang === 'ko'
+                        ? '서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.'
+                        : 'Server connection failed. Please try again.';
+                }
+                showError(msg);
             } finally {
                 extractBtn.disabled = false;
                 loading.style.display = 'none';
             }
+        }
+
+        function showError(msg) {
+            resultsSection.style.display = 'block';
+            stats.innerHTML = '';
+            resultsList.innerHTML = '';
+            var errorDiv = document.createElement('div');
+            errorDiv.className = 'result-card is-error';
+            errorDiv.style.animationDelay = '0ms';
+            errorDiv.innerHTML =
+                '<div class="result-card-content">' + escapeHtml(msg) + '</div>' +
+                '<button class="btn btn-primary" style="margin-top:16px" onclick="document.querySelector(\'#extractBtn\').click()">' +
+                (currentLang === 'ko' ? '다시 시도' : 'Retry') + '</button>';
+            resultsList.appendChild(errorDiv);
         }
 
         function renderResults(data) {

@@ -104,7 +104,7 @@ KOREAN_FILLERS = {
 NOISE_PATTERN = re.compile(r"^\[.*\]$")
 
 MAX_RETRIES = 3
-RETRY_DELAY = 1.5
+RETRY_DELAY = 1.0
 
 
 def denoise_text(text: str) -> str:
@@ -170,8 +170,8 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
             last_error = str(e)
             logger.error(f"Attempt {attempt}/{MAX_RETRIES} failed for {video_id}: {last_error}")
 
-            # Don't retry if video genuinely has no subtitles
-            if "No transcripts" in last_error or "disabled" in last_error.lower():
+            # Don't retry if video genuinely has no subtitles or IP is blocked
+            if "No transcripts" in last_error or "disabled" in last_error.lower() or "Could not retrieve" in last_error:
                 break
 
             if attempt < MAX_RETRIES:
