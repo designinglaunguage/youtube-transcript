@@ -11,6 +11,7 @@ import time
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import os
+import urllib.parse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -37,8 +38,34 @@ if _proxy_url:
     )
     logger.info(f"Using proxy: {_proxy_url[:30]}...")
 
+# --- Cloudflare Worker proxy support (WORKER_URL env var) ---
+_worker_url = os.environ.get("WORKER_URL", "")
+
+class _WorkerProxySession:
+    """Routes requests through a Cloudflare Worker to bypass YouTube IP blocks."""
+
+    def __init__(self, worker_url):
+        import requests as _req
+        self._session = _req.Session()
+        self._worker_url = worker_url.rstrip('/')
+
+    def get(self, url, **kwargs):
+        proxied = f"{self._worker_url}/?url={urllib.parse.quote(url, safe='')}"
+        return self._session.get(proxied, **kwargs)
+
+    def post(self, url, **kwargs):
+        proxied = f"{self._worker_url}/?url={urllib.parse.quote(url, safe='')}"
+        return self._session.post(proxied, **kwargs)
+
 # --- API instances: plain (no cookies) + with cookies (fallback) ---
-_yt_api = YouTubeTranscriptApi(proxy_config=_proxy_config)
+if _worker_url:
+    _worker_session = _WorkerProxySession(_worker_url)
+    _yt_api = YouTubeTranscriptApi(http_client=_worker_session)
+    logger.info(f"Using Cloudflare Worker proxy: {_worker_url}")
+elif _proxy_config:
+    _yt_api = YouTubeTranscriptApi(proxy_config=_proxy_config)
+else:
+    _yt_api = YouTubeTranscriptApi()
 _yt_api_cookies = None
 
 _cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
