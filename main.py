@@ -12,6 +12,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import os
 import urllib.parse
+import requests as _requests_mod
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,21 +42,18 @@ if _proxy_url:
 # --- Cloudflare Worker proxy support (WORKER_URL env var) ---
 _worker_url = os.environ.get("WORKER_URL", "")
 
-class _WorkerProxySession:
+class _WorkerProxySession(_requests_mod.Session):
     """Routes requests through a Cloudflare Worker to bypass YouTube IP blocks."""
 
     def __init__(self, worker_url):
-        import requests as _req
-        self._session = _req.Session()
+        super().__init__()
         self._worker_url = worker_url.rstrip('/')
 
-    def get(self, url, **kwargs):
-        proxied = f"{self._worker_url}/?url={urllib.parse.quote(url, safe='')}"
-        return self._session.get(proxied, **kwargs)
-
-    def post(self, url, **kwargs):
-        proxied = f"{self._worker_url}/?url={urllib.parse.quote(url, safe='')}"
-        return self._session.post(proxied, **kwargs)
+    def request(self, method, url, **kwargs):
+        if url.startswith('http'):
+            proxied = f"{self._worker_url}/?url={urllib.parse.quote(url, safe='')}"
+            return super().request(method, proxied, **kwargs)
+        return super().request(method, url, **kwargs)
 
 # --- API instances: plain (no cookies) + with cookies (fallback) ---
 if _worker_url:
