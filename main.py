@@ -26,10 +26,24 @@ app.add_middleware(
 
 _executor = ThreadPoolExecutor(max_workers=5)
 
+# --- Proxy support (optional PROXY_URL env var) ---
+_proxy_url = os.environ.get("PROXY_URL", "")
+_proxy_config = None
+if _proxy_url:
+    from youtube_transcript_api.proxies import GenericProxyConfig
+    _proxy_config = GenericProxyConfig(
+        http_url=_proxy_url,
+        https_url=_proxy_url,
+    )
+    logger.info(f"Using proxy: {_proxy_url[:30]}...")
+
+# --- API instances: plain (no cookies) + with cookies (fallback) ---
+_yt_api = YouTubeTranscriptApi(proxy_config=_proxy_config)
+_yt_api_cookies = None
+
 _cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
 
 try:
-    # If no local cookies.txt, try creating one from YOUTUBE_COOKIES_BASE64 env var
     if not os.path.exists(_cookie_path):
         import base64
         cookies_b64 = os.environ.get("YOUTUBE_COOKIES_BASE64", "")
@@ -47,14 +61,14 @@ try:
         _cookie_jar.load(ignore_discard=True, ignore_expires=True)
         _session = requests.Session()
         _session.cookies = _cookie_jar
-        _yt_api = YouTubeTranscriptApi(http_client=_session)
-        logger.info(f"Using cookies from {_cookie_path}")
+        if _proxy_url:
+            _session.proxies = {"http": _proxy_url, "https": _proxy_url}
+        _yt_api_cookies = YouTubeTranscriptApi(http_client=_session)
+        logger.info(f"Cookies loaded from {_cookie_path} (used as fallback)")
     else:
-        _yt_api = YouTubeTranscriptApi()
         logger.info("No cookies found, running without cookies")
 except Exception as e:
     logger.error(f"Failed to load cookies: {e}")
-    _yt_api = YouTubeTranscriptApi()
 
 
 class TranscriptRequest(BaseModel):
@@ -103,9 +117,6 @@ KOREAN_FILLERS = {
 
 NOISE_PATTERN = re.compile(r"^\[.*\]$")
 
-MAX_RETRIES = 3
-RETRY_DELAY = 1.0
-
 
 def denoise_text(text: str) -> str:
     lines = text.split("\n")
@@ -133,10 +144,14 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
     elif language == "en":
         languages.append("ko")
 
+    apis_to_try = [("plain", _yt_api)]
+    if _yt_api_cookies:
+        apis_to_try.append(("cookies", _yt_api_cookies))
+
     last_error = None
-    for attempt in range(1, MAX_RETRIES + 1):
+    for api_name, api in apis_to_try:
         try:
-            data = _yt_api.fetch(video_id, languages=languages)
+            data = api.fetch(video_id, languages=languages)
 
             if fmt == "json":
                 entries = [
@@ -168,16 +183,13 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
                 return {"transcript": text, "error": None}
         except Exception as e:
             last_error = str(e)
-            logger.error(f"Attempt {attempt}/{MAX_RETRIES} failed for {video_id}: {last_error}")
+            logger.warning(f"[{api_name}] Failed for {video_id}: {last_error[:100]}")
 
-            # Don't retry if video genuinely has no subtitles or IP is blocked
-            if "No transcripts" in last_error or "disabled" in last_error.lower() or "Could not retrieve" in last_error:
+            # Don't try cookies fallback if video genuinely has no subtitles
+            if "No transcripts" in last_error or "disabled" in last_error.lower():
                 break
 
-            if attempt < MAX_RETRIES:
-                time.sleep(RETRY_DELAY)
-
-    # All retries exhausted or non-retryable error
+    # All attempts failed
     error_msg = last_error or "Unknown error"
     if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
         error_msg = f"자막을 찾을 수 없습니다. ({error_msg[:120]})"
