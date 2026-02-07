@@ -28,27 +28,33 @@ _executor = ThreadPoolExecutor(max_workers=5)
 
 _cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
 
-# If no local cookies.txt, try creating one from YOUTUBE_COOKIES_BASE64 env var
-if not os.path.exists(_cookie_path):
-    import base64
-    cookies_b64 = os.environ.get("YOUTUBE_COOKIES_BASE64", "")
-    if cookies_b64:
-        with open(_cookie_path, "wb") as f:
-            f.write(base64.b64decode(cookies_b64))
-        logger.info("Created cookies.txt from YOUTUBE_COOKIES_BASE64 env var")
+try:
+    # If no local cookies.txt, try creating one from YOUTUBE_COOKIES_BASE64 env var
+    if not os.path.exists(_cookie_path):
+        import base64
+        cookies_b64 = os.environ.get("YOUTUBE_COOKIES_BASE64", "")
+        if cookies_b64:
+            _tmp_cookie = "/tmp/cookies.txt"
+            with open(_tmp_cookie, "wb") as f:
+                f.write(base64.b64decode(cookies_b64))
+            _cookie_path = _tmp_cookie
+            logger.info("Created cookies.txt from YOUTUBE_COOKIES_BASE64 env var")
 
-if os.path.exists(_cookie_path):
-    import http.cookiejar
-    import requests
-    _cookie_jar = http.cookiejar.MozillaCookieJar(_cookie_path)
-    _cookie_jar.load(ignore_discard=True, ignore_expires=True)
-    _session = requests.Session()
-    _session.cookies = _cookie_jar
-    _yt_api = YouTubeTranscriptApi(http_client=_session)
-    logger.info(f"Using cookies from {_cookie_path}")
-else:
+    if os.path.exists(_cookie_path):
+        import http.cookiejar
+        import requests
+        _cookie_jar = http.cookiejar.MozillaCookieJar(_cookie_path)
+        _cookie_jar.load(ignore_discard=True, ignore_expires=True)
+        _session = requests.Session()
+        _session.cookies = _cookie_jar
+        _yt_api = YouTubeTranscriptApi(http_client=_session)
+        logger.info(f"Using cookies from {_cookie_path}")
+    else:
+        _yt_api = YouTubeTranscriptApi()
+        logger.info("No cookies found, running without cookies")
+except Exception as e:
+    logger.error(f"Failed to load cookies: {e}")
     _yt_api = YouTubeTranscriptApi()
-    logger.info("No cookies found, running without cookies")
 
 
 class TranscriptRequest(BaseModel):
