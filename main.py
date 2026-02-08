@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 _executor = ThreadPoolExecutor(max_workers=5)
+_fetch_semaphore = asyncio.Semaphore(3)  # max 3 concurrent YouTube fetches
 
 # --- Proxy support (optional PROXY_URL env var) ---
 _proxy_url = os.environ.get("PROXY_URL", "")
@@ -162,6 +163,16 @@ def denoise_text(text: str) -> str:
     return "\n".join(result)
 
 
+def _format_error(error_msg: str) -> str:
+    if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
+        return f"자막을 찾을 수 없습니다. ({error_msg[:120]})"
+    elif "disabled" in error_msg.lower():
+        return "이 영상은 자막이 비활성화되어 있습니다."
+    elif "unavailable" in error_msg.lower():
+        return "영상을 찾을 수 없습니다."
+    return error_msg
+
+
 def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, keep_newlines: bool = False) -> dict:
     languages = [language]
     if language == "ko":
@@ -173,56 +184,56 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
     if _yt_api_cookies:
         apis_to_try.append(("cookies", _yt_api_cookies))
 
-    last_error = None
-    for api_name, api in apis_to_try:
-        try:
-            data = api.fetch(video_id, languages=languages)
+    max_retries = 2
+    for attempt in range(max_retries):
+        last_error = None
+        for api_name, api in apis_to_try:
+            try:
+                data = api.fetch(video_id, languages=languages)
 
-            if fmt == "json":
-                entries = [
-                    {"text": e.text, "start": e.start, "duration": e.duration}
-                    for e in data
-                ]
-                if denoise:
-                    deduped = []
-                    prev_text = None
-                    for entry in entries:
-                        t = entry["text"].strip()
-                        if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
-                            continue
-                        if t == prev_text:
-                            continue
-                        if t:
-                            entry["text"] = t
-                            deduped.append(entry)
-                            prev_text = t
-                    entries = deduped
-                return {"transcript": entries, "error": None}
-            else:
-                separator = "\n" if keep_newlines else " "
-                text = separator.join(e.text for e in data)
-                if denoise:
-                    text = denoise_text(text)
-                if not keep_newlines:
-                    text = " ".join(text.split())
-                return {"transcript": text, "error": None}
-        except Exception as e:
-            last_error = str(e)
-            logger.warning(f"[{api_name}] Failed for {video_id}: {last_error[:100]}")
+                if fmt == "json":
+                    entries = [
+                        {"text": e.text, "start": e.start, "duration": e.duration}
+                        for e in data
+                    ]
+                    if denoise:
+                        deduped = []
+                        prev_text = None
+                        for entry in entries:
+                            t = entry["text"].strip()
+                            if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
+                                continue
+                            if t == prev_text:
+                                continue
+                            if t:
+                                entry["text"] = t
+                                deduped.append(entry)
+                                prev_text = t
+                        entries = deduped
+                    return {"transcript": entries, "error": None}
+                else:
+                    separator = "\n" if keep_newlines else " "
+                    text = separator.join(e.text for e in data)
+                    if denoise:
+                        text = denoise_text(text)
+                    if not keep_newlines:
+                        text = " ".join(text.split())
+                    return {"transcript": text, "error": None}
+            except Exception as e:
+                last_error = str(e)
+                logger.warning(f"[{api_name}] attempt {attempt+1} Failed for {video_id}: {last_error[:100]}")
 
-            # Don't try cookies fallback if video genuinely has no subtitles
-            if "No transcripts" in last_error or "disabled" in last_error.lower():
-                break
+                # Don't retry if video genuinely has no subtitles
+                if "No transcripts" in last_error or "disabled" in last_error.lower():
+                    return {"transcript": None, "error": _format_error(last_error)}
+
+        # Rate limit / transient error: retry after delay
+        if attempt < max_retries - 1:
+            logger.info(f"Retrying {video_id} after 1s delay (attempt {attempt+1})")
+            time.sleep(1)
 
     # All attempts failed
-    error_msg = last_error or "Unknown error"
-    if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
-        error_msg = f"자막을 찾을 수 없습니다. ({error_msg[:120]})"
-    elif "disabled" in error_msg.lower():
-        error_msg = "이 영상은 자막이 비활성화되어 있습니다."
-    elif "unavailable" in error_msg.lower():
-        error_msg = "영상을 찾을 수 없습니다."
-    return {"transcript": None, "error": error_msg}
+    return {"transcript": None, "error": _format_error(last_error or "Unknown error")}
 
 
 @app.post("/api/transcripts")
@@ -253,18 +264,19 @@ async def get_transcripts(request: TranscriptRequest):
                 "error": "유효하지 않은 YouTube URL입니다.",
             }
 
-        result, title = await asyncio.gather(
-            loop.run_in_executor(
-                _executor,
-                _fetch_transcript,
-                video_id,
-                request.language,
-                request.denoise,
-                request.format,
-                request.keep_newlines,
-            ),
-            loop.run_in_executor(_executor, _fetch_title, video_id),
-        )
+        async with _fetch_semaphore:
+            result, title = await asyncio.gather(
+                loop.run_in_executor(
+                    _executor,
+                    _fetch_transcript,
+                    video_id,
+                    request.language,
+                    request.denoise,
+                    request.format,
+                    request.keep_newlines,
+                ),
+                loop.run_in_executor(_executor, _fetch_title, video_id),
+            )
 
         return {
             "url": url,
