@@ -957,6 +957,7 @@
             <div class="results-header">
                 <div class="results-stats" id="stats"></div>
                 <div class="results-actions">
+                    <button class="btn btn-secondary" id="retryFailedBtn" style="display:none">실패 항목 재시도</button>
                     <button class="btn btn-secondary" id="copyAllBtn">전체 복사</button>
                     <button class="btn btn-secondary" id="downloadAllBtn">전체 다운로드</button>
                 </div>
@@ -991,6 +992,7 @@
         var stats = $('#stats');
         var copyAllBtn = $('#copyAllBtn');
         var downloadAllBtn = $('#downloadAllBtn');
+        var retryFailedBtn = $('#retryFailedBtn');
         var denoiseCheckbox = $('#denoise');
         var metadataCheckbox = $('#metadata');
         var autoCopyCheckbox = $('#autoCopy');
@@ -1039,6 +1041,7 @@
                 progressEta: '예상 남은 시간',
                 progressDone: '완료!',
                 progressSec: '초',
+                retryFailed: '실패 항목 재시도',
             },
             en: {
                 pageTitle: 'YouTube Transcript',
@@ -1075,6 +1078,7 @@
                 progressEta: 'Est. remaining',
                 progressDone: 'Done!',
                 progressSec: 's',
+                retryFailed: 'Retry Failed',
             }
         };
 
@@ -1112,6 +1116,7 @@
 
             // Buttons
             extractBtn.textContent = t('extractBtn');
+            retryFailedBtn.textContent = t('retryFailed');
             copyAllBtn.textContent = t('copyAll');
             downloadAllBtn.textContent = t('downloadAll');
 
@@ -1324,6 +1329,10 @@
 
             // All done
             currentResults = { results: allResults, total: total, success_count: successCount, error_count: errorCount };
+
+            // Show/hide retry button
+            retryFailedBtn.style.display = errorCount > 0 ? 'inline-block' : 'none';
+            retryFailedBtn.textContent = t('retryFailed');
 
             // Update stats header
             var totalTokens = 0;
@@ -1650,6 +1659,91 @@
         }
 
         downloadAllBtn.addEventListener('click', doDownloadAll);
+
+        // Retry failed
+        retryFailedBtn.addEventListener('click', async function () {
+            if (!currentResults) return;
+
+            var failedIndices = [];
+            currentResults.results.forEach(function (r, i) {
+                if (r.error) failedIndices.push(i);
+            });
+            if (failedIndices.length === 0) return;
+
+            retryFailedBtn.disabled = true;
+            retryFailedBtn.textContent = '...';
+
+            var CONCURRENCY = 3;
+            var running = 0;
+            var queueIndex = 0;
+
+            await new Promise(function (resolveAll) {
+                function runNext() {
+                    while (running < CONCURRENCY && queueIndex < failedIndices.length) {
+                        var idx = failedIndices[queueIndex++];
+                        running++;
+                        (function (idx) {
+                            var url = currentResults.results[idx].url;
+                            fetch('/api/transcripts', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    urls: [url],
+                                    language: currentLanguage,
+                                    denoise: denoiseCheckbox.checked,
+                                    format: currentFormat,
+                                }),
+                            })
+                            .then(function (response) { return response.json(); })
+                            .then(function (data) {
+                                var result = data.results[0];
+                                currentResults.results[idx] = result;
+                                if (result.error) {
+                                    // still failed
+                                } else {
+                                    currentResults.success_count++;
+                                    currentResults.error_count--;
+                                }
+                                var oldCard = resultsList.querySelector('[data-result-index="' + idx + '"]');
+                                if (oldCard) oldCard.remove();
+                                renderSingleResult(result, idx);
+                            })
+                            .catch(function () {})
+                            .finally(function () {
+                                running--;
+                                if (queueIndex >= failedIndices.length && running === 0) {
+                                    resolveAll();
+                                } else {
+                                    runNext();
+                                }
+                            });
+                        })(idx);
+                    }
+                }
+                runNext();
+            });
+
+            // Update stats
+            var totalTokens = 0;
+            currentResults.results.forEach(function (r) {
+                if (!r.error && r.transcript) {
+                    var txt = typeof r.transcript === 'string' ? r.transcript : JSON.stringify(r.transcript);
+                    totalTokens += Math.ceil(txt.length / 2);
+                }
+            });
+            var statsHtml = '<span class="success-count">' + currentResults.success_count + t('successCount') + '</span>';
+            if (totalTokens > 0) {
+                statsHtml += ' &middot; <span style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:13px">~' + totalTokens.toLocaleString() + ' tokens</span>';
+            }
+            if (currentResults.error_count > 0) {
+                statsHtml += ' &middot; <span class="error-count">' + currentResults.error_count + t('errorCount') + '</span>';
+            }
+            stats.innerHTML = statsHtml;
+
+            retryFailedBtn.disabled = false;
+            retryFailedBtn.textContent = t('retryFailed');
+            retryFailedBtn.style.display = currentResults.error_count > 0 ? 'inline-block' : 'none';
+        });
 
         function downloadFile(filename, content, mimeType) {
             var blob = new Blob([content], { type: mimeType + ';charset=utf-8' });

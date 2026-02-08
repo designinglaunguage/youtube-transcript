@@ -184,7 +184,7 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
     if _yt_api_cookies:
         apis_to_try.append(("cookies", _yt_api_cookies))
 
-    max_retries = 2
+    max_retries = 3
     for attempt in range(max_retries):
         last_error = None
         for api_name, api in apis_to_try:
@@ -227,10 +227,11 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
                 if "No transcripts" in last_error or "disabled" in last_error.lower():
                     return {"transcript": None, "error": _format_error(last_error)}
 
-        # Rate limit / transient error: retry after delay
+        # Rate limit / transient error: retry after progressive delay
         if attempt < max_retries - 1:
-            logger.info(f"Retrying {video_id} after 1s delay (attempt {attempt+1})")
-            time.sleep(1)
+            delay = 1 + attempt  # 1s, 2s
+            logger.info(f"Retrying {video_id} after {delay}s delay (attempt {attempt+1})")
+            time.sleep(delay)
 
     # All attempts failed
     return {"transcript": None, "error": _format_error(last_error or "Unknown error")}
