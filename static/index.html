@@ -507,40 +507,48 @@
             margin-top: 48px;
             display: flex;
             flex-direction: column;
-            align-items: center;
-            gap: 20px;
+            gap: 12px;
+        }
+
+        .progress-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .progress-label {
+            font-family: var(--font-mono);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .progress-percent {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            color: var(--text-tertiary);
         }
 
         .progress-bar {
             width: 100%;
-            height: 2px;
+            height: 6px;
             background: var(--border);
-            border-radius: 1px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
-        .progress-bar-inner {
-            width: 40%;
+        .progress-bar-fill {
+            width: 0%;
             height: 100%;
             background: var(--accent);
-            border-radius: 1px;
-            animation: progress 1.4s ease-in-out infinite;
+            border-radius: 3px;
+            transition: width 0.3s ease;
         }
 
-        @keyframes progress {
-            0% { transform: translateX(-100%); }
-            100% { transform: translateX(350%); }
-        }
-
-        .loading-text {
-            font-size: 14px;
-            color: var(--text-secondary);
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.35; }
+        .progress-eta {
+            font-size: 13px;
+            color: var(--text-tertiary);
+            text-align: center;
         }
 
         /* -- Results -- */
@@ -904,6 +912,26 @@
                                 <span>URL 포함</span>
                             </label>
                         </div>
+
+                        <div class="option-divider"></div>
+
+                        <div class="option-group" style="gap: 16px;">
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="autoCopy">
+                                <span class="checkbox-custom"></span>
+                                <span>자동 복사</span>
+                            </label>
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="autoDownload">
+                                <span class="checkbox-custom"></span>
+                                <span>자동 다운로드</span>
+                            </label>
+                            <label class="checkbox-wrapper">
+                                <input type="checkbox" id="perFileDownload">
+                                <span class="checkbox-custom"></span>
+                                <span>파일별 다운로드</span>
+                            </label>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -915,10 +943,14 @@
         </section>
 
         <div id="loading" class="loading-section" style="display: none;">
-            <div class="progress-bar">
-                <div class="progress-bar-inner"></div>
+            <div class="progress-info">
+                <span class="progress-label" id="progressLabel">0 / 0</span>
+                <span class="progress-percent" id="progressPercent">0%</span>
             </div>
-            <p class="loading-text">자막을 추출하고 있습니다</p>
+            <div class="progress-bar">
+                <div class="progress-bar-fill" id="progressFill"></div>
+            </div>
+            <p class="progress-eta" id="progressEta"></p>
         </div>
 
         <section id="results" class="results-section" style="display: none;">
@@ -961,6 +993,9 @@
         var downloadAllBtn = $('#downloadAllBtn');
         var denoiseCheckbox = $('#denoise');
         var metadataCheckbox = $('#metadata');
+        var autoCopyCheckbox = $('#autoCopy');
+        var autoDownloadCheckbox = $('#autoDownload');
+        var perFileDownloadCheckbox = $('#perFileDownload');
         var urlCount = $('#urlCount');
 
         // i18n
@@ -979,6 +1014,9 @@
                 langLabel: '언어',
                 denoise: '노이즈 제거',
                 urlInclude: 'URL 포함',
+                autoCopy: '자동 복사',
+                autoDownload: '자동 다운로드',
+                perFileDownload: '파일별 다운로드',
                 extractBtn: '자막 추출',
                 copyAll: '전체 복사',
                 downloadAll: '전체 다운로드',
@@ -997,6 +1035,10 @@
                 hoursAgo: '시간 전',
                 daysAgo: '일 전',
                 charCount: '자',
+                progressOf: ' / ',
+                progressEta: '예상 남은 시간',
+                progressDone: '완료!',
+                progressSec: '초',
             },
             en: {
                 pageTitle: 'YouTube Transcript',
@@ -1008,6 +1050,9 @@
                 langLabel: 'Language',
                 denoise: 'Denoise',
                 urlInclude: 'Include URL',
+                autoCopy: 'Auto Copy',
+                autoDownload: 'Auto Download',
+                perFileDownload: 'Per-file DL',
                 extractBtn: 'Extract',
                 copyAll: 'Copy All',
                 downloadAll: 'Download All',
@@ -1026,6 +1071,10 @@
                 hoursAgo: 'h ago',
                 daysAgo: 'd ago',
                 charCount: ' chars',
+                progressOf: ' / ',
+                progressEta: 'Est. remaining',
+                progressDone: 'Done!',
+                progressSec: 's',
             }
         };
 
@@ -1057,15 +1106,16 @@
             var checkboxSpans = $$('.checkbox-wrapper span:last-child');
             if (checkboxSpans[0]) checkboxSpans[0].textContent = t('denoise');
             if (checkboxSpans[1]) checkboxSpans[1].textContent = t('urlInclude');
+            if (checkboxSpans[2]) checkboxSpans[2].textContent = t('autoCopy');
+            if (checkboxSpans[3]) checkboxSpans[3].textContent = t('autoDownload');
+            if (checkboxSpans[4]) checkboxSpans[4].textContent = t('perFileDownload');
 
             // Buttons
             extractBtn.textContent = t('extractBtn');
             copyAllBtn.textContent = t('copyAll');
             downloadAllBtn.textContent = t('downloadAll');
 
-            // Loading text
-            var loadingText = $('.loading-text');
-            if (loadingText) loadingText.textContent = t('loading');
+            // Progress text is updated dynamically during extraction
 
             // History
             var historyLabel = $('#history .section-label');
@@ -1170,57 +1220,231 @@
 
             extractBtn.disabled = true;
             loading.style.display = 'flex';
-            resultsSection.style.display = 'none';
+            resultsSection.style.display = 'block';
             resultsList.innerHTML = '';
+            stats.innerHTML = '';
 
-            var controller = new AbortController();
-            var timeoutId = setTimeout(function() { controller.abort(); }, 90000);
+            var total = urls.length;
+            var completed = 0;
+            var successCount = 0;
+            var errorCount = 0;
+            var allResults = [];
+            var startTime = Date.now();
 
-            try {
-                var response = await fetch('/api/transcripts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        urls: urls,
-                        language: currentLanguage,
-                        denoise: denoiseCheckbox.checked,
-                        format: currentFormat,
-                    }),
-                    signal: controller.signal,
+            // Initialize progress
+            var progressLabel = $('#progressLabel');
+            var progressPercent = $('#progressPercent');
+            var progressFill = $('#progressFill');
+            var progressEta = $('#progressEta');
+            progressLabel.textContent = '0' + t('progressOf') + total;
+            progressPercent.textContent = '0%';
+            progressFill.style.width = '0%';
+            progressEta.textContent = '';
+
+            function updateProgress() {
+                var pct = Math.round((completed / total) * 100);
+                progressLabel.textContent = completed + t('progressOf') + total;
+                progressPercent.textContent = pct + '%';
+                progressFill.style.width = pct + '%';
+
+                if (completed > 0 && completed < total) {
+                    var elapsed = (Date.now() - startTime) / 1000;
+                    var avgTime = elapsed / completed;
+                    var remaining = Math.ceil(avgTime * (total - completed));
+                    progressEta.textContent = t('progressEta') + ' ~' + remaining + t('progressSec');
+                } else if (completed === total) {
+                    var totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                    progressEta.textContent = t('progressDone') + ' (' + totalTime + t('progressSec') + ')';
+                }
+            }
+
+            // Send individual requests with concurrency limit of 5
+            var CONCURRENCY = 5;
+            var queue = urls.map(function(url, i) { return { url: url, index: i }; });
+            var running = 0;
+            var queueIndex = 0;
+
+            await new Promise(function(resolveAll) {
+                function runNext() {
+                    while (running < CONCURRENCY && queueIndex < queue.length) {
+                        var item = queue[queueIndex++];
+                        running++;
+                        (function(item) {
+                            fetchOne(item.url, item.index).finally(function() {
+                                running--;
+                                completed++;
+                                updateProgress();
+                                if (completed === total) {
+                                    resolveAll();
+                                } else {
+                                    runNext();
+                                }
+                            });
+                        })(item);
+                    }
+                }
+
+                function fetchOne(url, index) {
+                    return fetch('/api/transcripts', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            urls: [url],
+                            language: currentLanguage,
+                            denoise: denoiseCheckbox.checked,
+                            format: currentFormat,
+                        }),
+                    })
+                    .then(function(response) { return response.json(); })
+                    .then(function(data) {
+                        var result = data.results[0];
+                        allResults[index] = result;
+                        if (result.error) {
+                            errorCount++;
+                        } else {
+                            successCount++;
+                        }
+                        renderSingleResult(result, index);
+                    })
+                    .catch(function(err) {
+                        allResults[index] = {
+                            url: url,
+                            video_id: null,
+                            title: null,
+                            transcript: null,
+                            error: err.message || 'Network error',
+                        };
+                        errorCount++;
+                        renderSingleResult(allResults[index], index);
+                    });
+                }
+
+                runNext();
+            });
+
+            // All done
+            currentResults = { results: allResults, total: total, success_count: successCount, error_count: errorCount };
+
+            // Update stats header
+            var totalTokens = 0;
+            allResults.forEach(function(r) {
+                if (!r.error && r.transcript) {
+                    var txt = typeof r.transcript === 'string' ? r.transcript : JSON.stringify(r.transcript);
+                    totalTokens += Math.ceil(txt.length / 2);
+                }
+            });
+            var statsHtml = '<span class="success-count">' + successCount + t('successCount') + '</span>';
+            if (totalTokens > 0) {
+                statsHtml += ' &middot; <span style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:13px">~' + totalTokens.toLocaleString() + ' tokens</span>';
+            }
+            if (errorCount > 0) {
+                statsHtml += ' &middot; <span class="error-count">' + errorCount + t('errorCount') + '</span>';
+            }
+            stats.innerHTML = statsHtml;
+
+            addToHistory(allResults);
+
+            // Auto copy
+            if (autoCopyCheckbox.checked && successCount > 0) {
+                var successResults = currentResults.results.filter(function (r) { return !r.error; });
+                var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
+                try {
+                    await navigator.clipboard.writeText(allText);
+                    showCopied(copyAllBtn);
+                } catch (err) {
+                    fallbackCopy(allText);
+                    showCopied(copyAllBtn);
+                }
+            }
+
+            // Auto download
+            if (autoDownloadCheckbox.checked && successCount > 0) {
+                doDownloadAll();
+            }
+
+            extractBtn.disabled = false;
+            loading.style.display = 'none';
+        }
+
+        function renderSingleResult(result, index) {
+            var card = document.createElement('div');
+            card.className = 'result-card' + (result.error ? ' is-error' : '');
+            card.style.animationDelay = '0ms';
+            card.setAttribute('data-result-index', index);
+
+            var contentText = '';
+            if (result.error) {
+                contentText = result.error;
+            } else if (currentFormat === 'json') {
+                contentText = JSON.stringify(result.transcript, null, 2);
+            } else {
+                contentText = result.transcript;
+            }
+
+            var actionsHtml = '';
+            if (!result.error) {
+                actionsHtml = '<div class="result-card-actions">' +
+                    '<button class="btn btn-secondary btn-sm btn-copy" data-index="' + index + '">' + t('copy') + '</button>' +
+                    '<button class="btn btn-secondary btn-sm btn-download" data-index="' + index + '">' + t('download') + '</button>' +
+                    '</div>';
+            }
+
+            var idHtml = '';
+            if (result.video_id) {
+                var linkText = result.title || result.video_id;
+                idHtml = '<a class="result-card-id" href="https://youtube.com/watch?v=' + encodeURIComponent(result.video_id) + '" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+            } else {
+                idHtml = '<span class="result-card-id">' + escapeHtml(result.url) + '</span>';
+            }
+
+            var cardStatsHtml = '';
+            if (!result.error && result.transcript) {
+                var text = typeof result.transcript === 'string' ? result.transcript : JSON.stringify(result.transcript);
+                var charCount = text.length;
+                var tokenCount = Math.ceil(charCount / 2);
+                cardStatsHtml = '<div class="result-card-stats">' +
+                    charCount.toLocaleString() + t('charCount') + ' \u00B7 ~' + tokenCount.toLocaleString() + ' tokens' +
+                    '</div>';
+            }
+
+            card.innerHTML =
+                '<div class="result-card-header">' +
+                    '<div class="result-card-meta">' +
+                        '<span class="result-card-index">#' + (index + 1) + '</span>' +
+                        idHtml +
+                    '</div>' +
+                    actionsHtml +
+                '</div>' +
+                '<div class="result-card-content">' + escapeHtml(contentText) + '</div>' +
+                cardStatsHtml;
+
+            // Insert in correct position (maintain order even if responses come back out of order)
+            var inserted = false;
+            var existingCards = resultsList.querySelectorAll('.result-card');
+            for (var i = 0; i < existingCards.length; i++) {
+                var existingIndex = parseInt(existingCards[i].getAttribute('data-result-index'));
+                if (existingIndex > index) {
+                    resultsList.insertBefore(card, existingCards[i]);
+                    inserted = true;
+                    break;
+                }
+            }
+            if (!inserted) {
+                resultsList.appendChild(card);
+            }
+
+            // Bind copy/download for this card
+            var copyBtn = card.querySelector('.btn-copy');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', function () {
+                    copyResult(parseInt(copyBtn.dataset.index), copyBtn);
                 });
-
-                clearTimeout(timeoutId);
-
-                var data = await response.json();
-
-                if (data.error) {
-                    alert(data.error);
-                    return;
-                }
-
-                currentResults = data;
-                renderResults(data);
-                addToHistory(data.results);
-            } catch (err) {
-                clearTimeout(timeoutId);
-                var msg;
-                if (err.name === 'AbortError') {
-                    msg = currentLang === 'ko'
-                        ? '요청 시간이 초과되었습니다. URL 수를 줄이거나 다시 시도해주세요.'
-                        : 'Request timed out. Try fewer URLs or retry.';
-                } else if (!navigator.onLine) {
-                    msg = currentLang === 'ko'
-                        ? '인터넷 연결을 확인해주세요.'
-                        : 'Please check your internet connection.';
-                } else {
-                    msg = currentLang === 'ko'
-                        ? '서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.'
-                        : 'Server connection failed. Please try again.';
-                }
-                showError(msg);
-            } finally {
-                extractBtn.disabled = false;
-                loading.style.display = 'none';
+            }
+            var dlBtn = card.querySelector('.btn-download');
+            if (dlBtn) {
+                dlBtn.addEventListener('click', function () {
+                    downloadResult(parseInt(dlBtn.dataset.index));
+                });
             }
         }
 
@@ -1241,7 +1465,17 @@
         function renderResults(data) {
             resultsSection.style.display = 'block';
 
+            var totalTokens = 0;
+            data.results.forEach(function(r) {
+                if (!r.error && r.transcript) {
+                    var txt = typeof r.transcript === 'string' ? r.transcript : JSON.stringify(r.transcript);
+                    totalTokens += Math.ceil(txt.length / 2);
+                }
+            });
             var statsHtml = '<span class="success-count">' + data.success_count + t('successCount') + '</span>';
+            if (totalTokens > 0) {
+                statsHtml += ' &middot; <span style="color:var(--text-tertiary);font-family:var(--font-mono);font-size:13px">~' + totalTokens.toLocaleString() + ' tokens</span>';
+            }
             if (data.error_count > 0) {
                 statsHtml += ' &middot; <span class="error-count">' + data.error_count + t('errorCount') + '</span>';
             }
@@ -1383,25 +1617,39 @@
         });
 
         // Download all
-        downloadAllBtn.addEventListener('click', function () {
+        function doDownloadAll() {
             if (!currentResults) return;
 
             var successResults = currentResults.results.filter(function (r) { return !r.error; });
 
-            if (currentFormat === 'json') {
-                var includeMetadata = metadataCheckbox.checked;
-                var data = successResults.map(function (r) {
-                    if (includeMetadata) {
-                        return { video_id: r.video_id, url: r.url, transcript: r.transcript };
-                    }
-                    return r.transcript;
+            if (perFileDownloadCheckbox.checked) {
+                // Download each video as separate file
+                successResults.forEach(function (r) {
+                    var text = getResultText(r);
+                    var ext = currentFormat === 'json' ? 'json' : 'txt';
+                    var filename = (r.video_id || 'transcript') + '.' + ext;
+                    var mimeType = currentFormat === 'json' ? 'application/json' : 'text/plain';
+                    downloadFile(filename, text, mimeType);
                 });
-                downloadFile('transcripts.json', JSON.stringify(data, null, 2), 'application/json');
             } else {
-                var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
-                downloadFile('transcripts.txt', allText, 'text/plain');
+                // Download all in one file
+                if (currentFormat === 'json') {
+                    var includeMetadata = metadataCheckbox.checked;
+                    var data = successResults.map(function (r) {
+                        if (includeMetadata) {
+                            return { video_id: r.video_id, url: r.url, transcript: r.transcript };
+                        }
+                        return r.transcript;
+                    });
+                    downloadFile('transcripts.json', JSON.stringify(data, null, 2), 'application/json');
+                } else {
+                    var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
+                    downloadFile('transcripts.txt', allText, 'text/plain');
+                }
             }
-        });
+        }
+
+        downloadAllBtn.addEventListener('click', doDownloadAll);
 
         function downloadFile(filename, content, mimeType) {
             var blob = new Blob([content], { type: mimeType + ';charset=utf-8' });
