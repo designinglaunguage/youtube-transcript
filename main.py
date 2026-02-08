@@ -99,7 +99,7 @@ except Exception as e:
 
 class TranscriptRequest(BaseModel):
     urls: list[str]
-    language: str = "ko"
+    language: str = "auto"
     denoise: bool = False
     format: str = "text"
     keep_newlines: bool = False
@@ -174,11 +174,10 @@ def _format_error(error_msg: str) -> str:
 
 
 def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, keep_newlines: bool = False) -> dict:
-    languages = [language]
-    if language == "ko":
-        languages.append("en")
-    elif language == "en":
-        languages.append("ko")
+    if language == "auto":
+        languages = ["ko", "en"]
+    else:
+        languages = [language]
 
     apis_to_try = [("plain", _yt_api)]
     if _yt_api_cookies:

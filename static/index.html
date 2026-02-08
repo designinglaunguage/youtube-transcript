@@ -893,7 +893,8 @@
                         <div class="option-group">
                             <span class="option-label">언어</span>
                             <div class="toggle-group" data-name="language">
-                                <button class="toggle-btn active" data-value="ko">한국어</button>
+                                <button class="toggle-btn active" data-value="auto">자동</button>
+                                <button class="toggle-btn" data-value="ko">한국어</button>
                                 <button class="toggle-btn" data-value="en">English</button>
                             </div>
                         </div>
@@ -926,11 +927,6 @@
                                 <span class="checkbox-custom"></span>
                                 <span>자동 다운로드</span>
                             </label>
-                            <label class="checkbox-wrapper">
-                                <input type="checkbox" id="perFileDownload">
-                                <span class="checkbox-custom"></span>
-                                <span>파일별 다운로드</span>
-                            </label>
                         </div>
                     </div>
                 </div>
@@ -959,7 +955,8 @@
                 <div class="results-actions">
                     <button class="btn btn-secondary" id="retryFailedBtn" style="display:none">실패 항목 재시도</button>
                     <button class="btn btn-secondary" id="copyAllBtn">전체 복사</button>
-                    <button class="btn btn-secondary" id="downloadAllBtn">전체 다운로드</button>
+                    <button class="btn btn-secondary" id="downloadAllBtn">통합 다운로드</button>
+                    <button class="btn btn-secondary" id="downloadEachBtn">개별 다운로드</button>
                 </div>
             </div>
             <div id="resultsList" class="results-list"></div>
@@ -978,7 +975,7 @@
     <script>
     (function () {
         var currentFormat = 'text';
-        var currentLanguage = 'ko';
+        var currentLanguage = 'auto';
         var currentResults = null;
 
         var $ = function (sel) { return document.querySelector(sel); };
@@ -992,12 +989,12 @@
         var stats = $('#stats');
         var copyAllBtn = $('#copyAllBtn');
         var downloadAllBtn = $('#downloadAllBtn');
+        var downloadEachBtn = $('#downloadEachBtn');
         var retryFailedBtn = $('#retryFailedBtn');
         var denoiseCheckbox = $('#denoise');
         var metadataCheckbox = $('#metadata');
         var autoCopyCheckbox = $('#autoCopy');
         var autoDownloadCheckbox = $('#autoDownload');
-        var perFileDownloadCheckbox = $('#perFileDownload');
         var urlCount = $('#urlCount');
 
         // i18n
@@ -1014,14 +1011,17 @@
                 optionsLabel: '옵션',
                 formatLabel: '형식',
                 langLabel: '언어',
+                langAuto: '자동',
+                langKo: '한국어',
+                langEn: 'English',
                 denoise: '노이즈 제거',
                 urlInclude: 'URL 포함',
                 autoCopy: '자동 복사',
                 autoDownload: '자동 다운로드',
-                perFileDownload: '파일별 다운로드',
                 extractBtn: '자막 추출',
                 copyAll: '전체 복사',
-                downloadAll: '전체 다운로드',
+                downloadAll: '통합 다운로드',
+                downloadEach: '개별 다운로드',
                 copy: '복사',
                 download: '다운로드',
                 copied: '복사됨 \u2713',
@@ -1051,14 +1051,17 @@
                 optionsLabel: 'Options',
                 formatLabel: 'Format',
                 langLabel: 'Language',
+                langAuto: 'Auto',
+                langKo: '한국어',
+                langEn: 'English',
                 denoise: 'Denoise',
                 urlInclude: 'Include URL',
                 autoCopy: 'Auto Copy',
                 autoDownload: 'Auto Download',
-                perFileDownload: 'Per-file DL',
                 extractBtn: 'Extract',
                 copyAll: 'Copy All',
-                downloadAll: 'Download All',
+                downloadAll: 'Combined DL',
+                downloadEach: 'Individual DL',
                 copy: 'Copy',
                 download: 'Download',
                 copied: 'Copied \u2713',
@@ -1106,19 +1109,28 @@
             if (optLabels[0]) optLabels[0].textContent = t('formatLabel');
             if (optLabels[1]) optLabels[1].textContent = t('langLabel');
 
+            // Language toggle buttons
+            var langToggleGroup = document.querySelector('.toggle-group[data-name="language"]');
+            if (langToggleGroup) {
+                var langBtns = langToggleGroup.querySelectorAll('.toggle-btn');
+                if (langBtns[0]) langBtns[0].textContent = t('langAuto');
+                if (langBtns[1]) langBtns[1].textContent = t('langKo');
+                if (langBtns[2]) langBtns[2].textContent = t('langEn');
+            }
+
             // Checkboxes
             var checkboxSpans = $$('.checkbox-wrapper span:last-child');
             if (checkboxSpans[0]) checkboxSpans[0].textContent = t('denoise');
             if (checkboxSpans[1]) checkboxSpans[1].textContent = t('urlInclude');
             if (checkboxSpans[2]) checkboxSpans[2].textContent = t('autoCopy');
             if (checkboxSpans[3]) checkboxSpans[3].textContent = t('autoDownload');
-            if (checkboxSpans[4]) checkboxSpans[4].textContent = t('perFileDownload');
 
             // Buttons
             extractBtn.textContent = t('extractBtn');
             retryFailedBtn.textContent = t('retryFailed');
             copyAllBtn.textContent = t('copyAll');
             downloadAllBtn.textContent = t('downloadAll');
+            if (downloadEachBtn) downloadEachBtn.textContent = t('downloadEach');
 
             // Progress text is updated dynamically during extraction
 
@@ -1625,40 +1637,39 @@
             }
         });
 
-        // Download all
+        // Download all (combined)
         function doDownloadAll() {
             if (!currentResults) return;
-
             var successResults = currentResults.results.filter(function (r) { return !r.error; });
-
-            if (perFileDownloadCheckbox.checked) {
-                // Download each video as separate file
-                successResults.forEach(function (r) {
-                    var text = getResultText(r);
-                    var ext = currentFormat === 'json' ? 'json' : 'txt';
-                    var filename = (r.video_id || 'transcript') + '.' + ext;
-                    var mimeType = currentFormat === 'json' ? 'application/json' : 'text/plain';
-                    downloadFile(filename, text, mimeType);
+            if (currentFormat === 'json') {
+                var includeMetadata = metadataCheckbox.checked;
+                var data = successResults.map(function (r) {
+                    if (includeMetadata) {
+                        return { video_id: r.video_id, url: r.url, transcript: r.transcript };
+                    }
+                    return r.transcript;
                 });
+                downloadFile('transcripts.json', JSON.stringify(data, null, 2), 'application/json');
             } else {
-                // Download all in one file
-                if (currentFormat === 'json') {
-                    var includeMetadata = metadataCheckbox.checked;
-                    var data = successResults.map(function (r) {
-                        if (includeMetadata) {
-                            return { video_id: r.video_id, url: r.url, transcript: r.transcript };
-                        }
-                        return r.transcript;
-                    });
-                    downloadFile('transcripts.json', JSON.stringify(data, null, 2), 'application/json');
-                } else {
-                    var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
-                    downloadFile('transcripts.txt', allText, 'text/plain');
-                }
+                var allText = successResults.map(function (r) { return getResultText(r); }).join('\n\n---\n\n');
+                downloadFile('transcripts.txt', allText, 'text/plain');
             }
         }
 
         downloadAllBtn.addEventListener('click', doDownloadAll);
+
+        // Download each (individual files)
+        downloadEachBtn.addEventListener('click', function () {
+            if (!currentResults) return;
+            var successResults = currentResults.results.filter(function (r) { return !r.error; });
+            successResults.forEach(function (r) {
+                var text = getResultText(r);
+                var ext = currentFormat === 'json' ? 'json' : 'txt';
+                var filename = (r.video_id || 'transcript') + '.' + ext;
+                var mimeType = currentFormat === 'json' ? 'application/json' : 'text/plain';
+                downloadFile(filename, text, mimeType);
+            });
+        });
 
         // Retry failed
         retryFailedBtn.addEventListener('click', async function () {
