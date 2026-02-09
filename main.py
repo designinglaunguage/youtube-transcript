@@ -165,7 +165,7 @@ def denoise_text(text: str) -> str:
 
 def _format_error(error_msg: str) -> str:
     if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
-        return f"자막을 찾을 수 없습니다. ({error_msg[:120]})"
+        return f"자막을 찾을 수 없습니다. ({error_msg[:200]})"
     elif "disabled" in error_msg.lower():
         return "이 영상은 자막이 비활성화되어 있습니다."
     elif "unavailable" in error_msg.lower():
@@ -183,54 +183,83 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
     if _yt_api_cookies:
         apis_to_try.append(("cookies", _yt_api_cookies))
 
-    max_retries = 3
+    def _process_result(data):
+        if fmt == "json":
+            entries = [
+                {"text": e.text, "start": e.start, "duration": e.duration}
+                for e in data
+            ]
+            if denoise:
+                deduped = []
+                prev_text = None
+                for entry in entries:
+                    t = entry["text"].strip()
+                    if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
+                        continue
+                    if t == prev_text:
+                        continue
+                    if t:
+                        entry["text"] = t
+                        deduped.append(entry)
+                        prev_text = t
+                entries = deduped
+            return {"transcript": entries, "error": None}
+        else:
+            separator = "\n" if keep_newlines else " "
+            text = separator.join(e.text for e in data)
+            if denoise:
+                text = denoise_text(text)
+            if not keep_newlines:
+                text = " ".join(text.split())
+            return {"transcript": text, "error": None}
+
+    max_retries = 4
     for attempt in range(max_retries):
         last_error = None
         for api_name, api in apis_to_try:
             try:
                 data = api.fetch(video_id, languages=languages)
-
-                if fmt == "json":
-                    entries = [
-                        {"text": e.text, "start": e.start, "duration": e.duration}
-                        for e in data
-                    ]
-                    if denoise:
-                        deduped = []
-                        prev_text = None
-                        for entry in entries:
-                            t = entry["text"].strip()
-                            if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
-                                continue
-                            if t == prev_text:
-                                continue
-                            if t:
-                                entry["text"] = t
-                                deduped.append(entry)
-                                prev_text = t
-                        entries = deduped
-                    return {"transcript": entries, "error": None}
-                else:
-                    separator = "\n" if keep_newlines else " "
-                    text = separator.join(e.text for e in data)
-                    if denoise:
-                        text = denoise_text(text)
-                    if not keep_newlines:
-                        text = " ".join(text.split())
-                    return {"transcript": text, "error": None}
+                return _process_result(data)
             except Exception as e:
                 last_error = str(e)
-                logger.warning(f"[{api_name}] attempt {attempt+1} Failed for {video_id}: {last_error[:100]}")
+                logger.warning(f"[{api_name}] attempt {attempt+1} Failed for {video_id}: {last_error[:200]}")
 
                 # Don't retry if video genuinely has no subtitles
                 if "No transcripts" in last_error or "disabled" in last_error.lower():
                     return {"transcript": None, "error": _format_error(last_error)}
 
-        # Rate limit / transient error: retry after progressive delay
+        # Rate limit / transient error: retry after exponential backoff
         if attempt < max_retries - 1:
-            delay = 1 + attempt  # 1s, 2s
+            delay = 2 ** (attempt + 1)  # 2s, 4s, 8s
             logger.info(f"Retrying {video_id} after {delay}s delay (attempt {attempt+1})")
             time.sleep(delay)
+
+    # All language-specific attempts failed - try without language filter
+    for api_name, api in apis_to_try:
+        try:
+            logger.info(f"[{api_name}] Trying without language filter for {video_id}")
+            data = api.fetch(video_id)
+            return _process_result(data)
+        except Exception as e:
+            logger.warning(f"[{api_name}] No-lang fallback failed for {video_id}: {str(e)[:200]}")
+
+    # Final fallback: list available transcripts and fetch the best match
+    for api_name, api in apis_to_try:
+        try:
+            logger.info(f"[{api_name}] Listing transcripts for {video_id}")
+            transcript_list = api.list(video_id)
+            # Try to find preferred language transcript
+            for lang in languages:
+                for t in transcript_list:
+                    if t.language_code == lang:
+                        data = t.fetch()
+                        return _process_result(data)
+            # Take any available transcript
+            for t in transcript_list:
+                data = t.fetch()
+                return _process_result(data)
+        except Exception as e:
+            logger.warning(f"[{api_name}] List fallback failed for {video_id}: {str(e)[:200]}")
 
     # All attempts failed
     return {"transcript": None, "error": _format_error(last_error or "Unknown error")}
