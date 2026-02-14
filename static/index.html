@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -153,6 +153,11 @@
             align-items: center;
         }
 
+        /* -- UI Language Dropdown -- */
+        .ui-lang-dropdown {
+            position: relative;
+        }
+
         /* -- Language Toggle -- */
         .lang-toggle {
             background: var(--bg-surface);
@@ -170,6 +175,7 @@
             font-weight: 600;
             transition: all var(--transition);
             flex-shrink: 0;
+            min-width: 80px;
         }
 
         .lang-toggle:hover {
@@ -408,6 +414,83 @@
             border: solid #fff;
             border-width: 0 1.5px 1.5px 0;
             transform: rotate(45deg);
+        }
+
+        /* -- Language Dropdown -- */
+        .lang-dropdown {
+            position: relative;
+        }
+
+        .lang-dropdown-trigger {
+            padding: 7px 16px;
+            font-family: var(--font-sans);
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all var(--transition);
+            white-space: nowrap;
+            min-width: 120px;
+            text-align: left;
+        }
+
+        .lang-dropdown-trigger:hover {
+            color: var(--text-primary);
+            background: var(--accent-subtle);
+        }
+
+        .lang-dropdown-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            min-width: 100%;
+            max-height: 200px;
+            overflow-y: auto;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-md);
+            z-index: 100;
+            display: none;
+        }
+
+        .lang-dropdown-menu.show {
+            display: block;
+        }
+
+        .lang-dropdown-item {
+            padding: 10px 16px;
+            font-family: var(--font-sans);
+            font-size: 15px;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .lang-dropdown-item:hover {
+            background: var(--accent-subtle);
+            color: var(--text-primary);
+        }
+
+        .lang-dropdown-item.active {
+            background: var(--accent);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        /* -- Download Mode Toggle -- */
+        .download-mode-toggle {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            margin-left: 12px;
+        }
+
+        .download-mode-toggle.show {
+            display: inline-flex;
         }
 
         /* -- Buttons -- */
@@ -790,6 +873,132 @@
             margin-left: 12px;
         }
 
+        /* -- Feedback -- */
+        .feedback-btn {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+            transition: all var(--transition);
+            z-index: 50;
+        }
+
+        .feedback-btn:hover {
+            background: var(--accent-hover);
+            transform: scale(1.1);
+        }
+
+        .feedback-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .feedback-overlay.show {
+            display: flex;
+        }
+
+        .feedback-modal {
+            background: var(--bg-elevated);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .feedback-modal h3 {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 6px;
+            color: var(--text-primary);
+        }
+
+        .feedback-modal p {
+            font-size: 14px;
+            color: var(--text-tertiary);
+            margin-bottom: 16px;
+        }
+
+        .feedback-modal textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px 14px;
+            font-family: var(--font-sans);
+            font-size: 14px;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            resize: vertical;
+            outline: none;
+            transition: border-color var(--transition);
+        }
+
+        .feedback-modal textarea:focus {
+            border-color: var(--accent);
+        }
+
+        .feedback-type-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .feedback-type-btn {
+            padding: 6px 14px;
+            font-family: var(--font-sans);
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .feedback-type-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .feedback-type-btn:hover:not(.active) {
+            border-color: var(--text-tertiary);
+        }
+
+        .feedback-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            margin-top: 16px;
+        }
+
+        .feedback-char-count {
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-tertiary);
+            text-align: right;
+            margin-top: 4px;
+        }
+
         /* -- Responsive -- */
         @media (max-width: 640px) {
             .container {
@@ -843,9 +1052,19 @@
             <div class="header-row">
                 <h1>YouTube Transcript</h1>
                 <div class="header-actions">
-                    <button id="langToggle" class="lang-toggle" title="Language">
-                        <span>KO</span>
-                    </button>
+                    <div class="ui-lang-dropdown" id="uiLangDropdown">
+                        <button class="lang-toggle" id="uiLangTrigger" title="UI Language">
+                            <span>Auto</span>
+                        </button>
+                        <div class="lang-dropdown-menu" id="uiLangMenu">
+                            <div class="lang-dropdown-item active" data-lang="auto">Auto</div>
+                            <div class="lang-dropdown-item" data-lang="ko">한국어</div>
+                            <div class="lang-dropdown-item" data-lang="en">English</div>
+                            <div class="lang-dropdown-item" data-lang="es">Español</div>
+                            <div class="lang-dropdown-item" data-lang="ja">日本語</div>
+                            <div class="lang-dropdown-item" data-lang="pt">Português</div>
+                        </div>
+                    </div>
                     <button id="themeToggle" class="theme-toggle" title="Toggle theme" aria-label="Toggle theme">
                         <svg class="theme-icon sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="5"></circle>
@@ -864,7 +1083,7 @@
                     </button>
                 </div>
             </div>
-            <p class="subtitle">YouTube 영상의 자막을 추출합니다</p>
+            <p class="subtitle"></p>
         </header>
 
         <section class="input-section">
@@ -872,7 +1091,7 @@
                 <p class="section-label">URL 입력</p>
                 <div class="textarea-wrapper">
                     <textarea id="urlInput" placeholder="YouTube URL을 한 줄에 하나씩 입력하세요&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://youtu.be/..." spellcheck="false"></textarea>
-                    <span class="url-count" id="urlCount">0 / 50</span>
+                    <span class="url-count" id="urlCount">0 / 20</span>
                 </div>
             </div>
 
@@ -885,6 +1104,8 @@
                             <div class="toggle-group" data-name="format">
                                 <button class="toggle-btn active" data-value="text">Text</button>
                                 <button class="toggle-btn" data-value="json">JSON</button>
+                                <button class="toggle-btn" data-value="srt">SRT</button>
+                                <button class="toggle-btn" data-value="vtt">VTT</button>
                             </div>
                         </div>
 
@@ -892,10 +1113,16 @@
 
                         <div class="option-group">
                             <span class="option-label">언어</span>
-                            <div class="toggle-group" data-name="language">
-                                <button class="toggle-btn active" data-value="auto">자동</button>
-                                <button class="toggle-btn" data-value="ko">한국어</button>
-                                <button class="toggle-btn" data-value="en">English</button>
+                            <div class="lang-dropdown" id="langDropdown">
+                                <button class="lang-dropdown-trigger" id="langDropdownTrigger">Auto</button>
+                                <div class="lang-dropdown-menu" id="langDropdownMenu">
+                                    <div class="lang-dropdown-item active" data-value="auto">Auto</div>
+                                    <div class="lang-dropdown-item" data-value="en">English</div>
+                                    <div class="lang-dropdown-item" data-value="es">Español</div>
+                                    <div class="lang-dropdown-item" data-value="ja">日本語</div>
+                                    <div class="lang-dropdown-item" data-value="pt">Português</div>
+                                    <div class="lang-dropdown-item" data-value="ko">한국어</div>
+                                </div>
                             </div>
                         </div>
 
@@ -912,6 +1139,11 @@
                                 <span class="checkbox-custom"></span>
                                 <span>URL 포함</span>
                             </label>
+                            <label class="checkbox-wrapper" id="timestampOption">
+                                <input type="checkbox" id="timestamps">
+                                <span class="checkbox-custom"></span>
+                                <span>Timestamps</span>
+                            </label>
                         </div>
 
                         <div class="option-divider"></div>
@@ -920,13 +1152,19 @@
                             <label class="checkbox-wrapper">
                                 <input type="checkbox" id="autoCopy">
                                 <span class="checkbox-custom"></span>
-                                <span>자동 복사</span>
+                                <span>Link Auto Copy</span>
                             </label>
                             <label class="checkbox-wrapper">
                                 <input type="checkbox" id="autoDownload">
                                 <span class="checkbox-custom"></span>
-                                <span>자동 다운로드</span>
+                                <span>Auto Subtitle Download</span>
                             </label>
+                        </div>
+                        <div class="download-mode-toggle" id="downloadModeToggle">
+                            <div class="toggle-group" data-name="downloadMode">
+                                <button class="toggle-btn" data-value="individual">Per File</button>
+                                <button class="toggle-btn active" data-value="combined">All at Once</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -955,8 +1193,7 @@
                 <div class="results-actions">
                     <button class="btn btn-secondary" id="retryFailedBtn" style="display:none">실패 항목 재시도</button>
                     <button class="btn btn-secondary" id="copyAllBtn">전체 복사</button>
-                    <button class="btn btn-secondary" id="downloadAllBtn">통합 다운로드</button>
-                    <button class="btn btn-secondary" id="downloadEachBtn">개별 다운로드</button>
+                    <button class="btn btn-secondary" id="downloadBtn">Download</button>
                 </div>
             </div>
             <div id="resultsList" class="results-list"></div>
@@ -972,11 +1209,38 @@
         </section>
     </div>
 
+    <!-- Feedback Button -->
+    <button class="feedback-btn" id="feedbackBtn" title="Feedback">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+        </svg>
+    </button>
+
+    <!-- Feedback Modal -->
+    <div class="feedback-overlay" id="feedbackOverlay">
+        <div class="feedback-modal">
+            <h3 id="feedbackTitle">Feedback</h3>
+            <p id="feedbackDesc">Share your thoughts, suggestions, or report issues.</p>
+            <div class="feedback-type-group" id="feedbackTypeGroup">
+                <button class="feedback-type-btn active" data-type="suggestion">Suggestion</button>
+                <button class="feedback-type-btn" data-type="bug">Bug</button>
+                <button class="feedback-type-btn" data-type="general">General</button>
+            </div>
+            <textarea id="feedbackText" placeholder="Write your feedback here..." maxlength="2000"></textarea>
+            <div class="feedback-char-count"><span id="feedbackCharCount">0</span> / 2000</div>
+            <div class="feedback-actions">
+                <button class="btn btn-secondary" id="feedbackCancelBtn">Cancel</button>
+                <button class="btn btn-primary" id="feedbackSubmitBtn" style="width:auto;padding:10px 24px;font-size:14px">Submit</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     (function () {
         var currentFormat = 'text';
         var currentLanguage = 'auto';
         var currentResults = null;
+        var downloadMode = 'combined';
 
         var $ = function (sel) { return document.querySelector(sel); };
         var $$ = function (sel) { return document.querySelectorAll(sel); };
@@ -988,19 +1252,32 @@
         var resultsList = $('#resultsList');
         var stats = $('#stats');
         var copyAllBtn = $('#copyAllBtn');
-        var downloadAllBtn = $('#downloadAllBtn');
-        var downloadEachBtn = $('#downloadEachBtn');
+        var downloadBtn = $('#downloadBtn');
         var retryFailedBtn = $('#retryFailedBtn');
         var denoiseCheckbox = $('#denoise');
         var metadataCheckbox = $('#metadata');
         var autoCopyCheckbox = $('#autoCopy');
         var autoDownloadCheckbox = $('#autoDownload');
+        var timestampsCheckbox = $('#timestamps');
+        var timestampOption = $('#timestampOption');
         var urlCount = $('#urlCount');
 
         // i18n
         var LANG_KEY = 'yt-transcript-lang';
-        var currentLang = localStorage.getItem(LANG_KEY) || 'ko';
-        var langToggle = $('#langToggle');
+
+        // 브라우저 언어 감지
+        function detectBrowserLanguage() {
+            var browserLang = navigator.language.split('-')[0];
+            var supportedLangs = ['ko', 'en', 'es', 'ja', 'pt'];
+            return supportedLangs.includes(browserLang) ? browserLang : 'en';
+        }
+
+        var currentLang = localStorage.getItem(LANG_KEY) || 'auto';
+
+        // auto일 때 실제 언어 반환
+        function getEffectiveLang() {
+            return currentLang === 'auto' ? detectBrowserLanguage() : currentLang;
+        }
 
         var i18n = {
             ko: {
@@ -1011,24 +1288,29 @@
                 optionsLabel: '옵션',
                 formatLabel: '형식',
                 langLabel: '언어',
-                langAuto: '자동',
+                langAuto: 'Auto',
                 langKo: '한국어',
                 langEn: 'English',
+                langEs: 'Español',
+                langJa: '日本語',
+                langPt: 'Português',
                 denoise: '노이즈 제거',
                 urlInclude: 'URL 포함',
-                autoCopy: '자동 복사',
-                autoDownload: '자동 다운로드',
+                autoCopy: '링크 자동복사',
+                autoSubtitleDownload: '자동 자막 다운로드',
+                perFile: '파일별',
+                allAtOnce: '한번에',
                 extractBtn: '자막 추출',
                 copyAll: '전체 복사',
-                downloadAll: '통합 다운로드',
-                downloadEach: '개별 다운로드',
+                downloadBtn: '다운로드',
                 copy: '복사',
                 download: '다운로드',
                 copied: '복사됨 \u2713',
                 loading: '자막을 추출하고 있습니다',
                 successCount: '개 성공',
                 errorCount: '개 실패',
-                maxUrlAlert: '최대 50개의 URL만 입력할 수 있습니다.',
+                timestamps: '타임스탬프',
+                maxUrlAlert: '최대 20개의 URL만 입력할 수 있습니다.',
                 requestError: '요청 중 오류가 발생했습니다: ',
                 historyLabel: '최근 추출 기록',
                 clearHistory: '기록 삭제',
@@ -1042,6 +1324,15 @@
                 progressDone: '완료!',
                 progressSec: '초',
                 retryFailed: '실패 항목 재시도',
+                feedbackTitle: '피드백',
+                feedbackDesc: '의견, 제안 또는 버그를 알려주세요.',
+                feedbackSuggestion: '제안',
+                feedbackBug: '버그',
+                feedbackGeneral: '기타',
+                feedbackPlaceholder: '피드백을 입력해주세요...',
+                feedbackSubmit: '제출',
+                feedbackCancel: '취소',
+                feedbackDone: '감사합니다!',
             },
             en: {
                 pageTitle: 'YouTube Transcript',
@@ -1054,21 +1345,26 @@
                 langAuto: 'Auto',
                 langKo: '한국어',
                 langEn: 'English',
+                langEs: 'Español',
+                langJa: '日本語',
+                langPt: 'Português',
                 denoise: 'Denoise',
                 urlInclude: 'Include URL',
-                autoCopy: 'Auto Copy',
-                autoDownload: 'Auto Download',
+                autoCopy: 'Link Auto Copy',
+                autoSubtitleDownload: 'Auto Subtitle Download',
+                perFile: 'Per File',
+                allAtOnce: 'All at Once',
                 extractBtn: 'Extract',
                 copyAll: 'Copy All',
-                downloadAll: 'Combined DL',
-                downloadEach: 'Individual DL',
+                downloadBtn: 'Download',
                 copy: 'Copy',
                 download: 'Download',
                 copied: 'Copied \u2713',
                 loading: 'Extracting subtitles...',
                 successCount: ' succeeded',
                 errorCount: ' failed',
-                maxUrlAlert: 'Maximum 50 URLs allowed.',
+                timestamps: 'Timestamps',
+                maxUrlAlert: 'Maximum 20 URLs allowed.',
                 requestError: 'Request failed: ',
                 historyLabel: 'Recent History',
                 clearHistory: 'Clear',
@@ -1082,15 +1378,202 @@
                 progressDone: 'Done!',
                 progressSec: 's',
                 retryFailed: 'Retry Failed',
+                feedbackTitle: 'Feedback',
+                feedbackDesc: 'Share your thoughts, suggestions, or report issues.',
+                feedbackSuggestion: 'Suggestion',
+                feedbackBug: 'Bug',
+                feedbackGeneral: 'General',
+                feedbackPlaceholder: 'Write your feedback here...',
+                feedbackSubmit: 'Submit',
+                feedbackCancel: 'Cancel',
+                feedbackDone: 'Thank you!',
+            },
+            es: {
+                pageTitle: 'YouTube Transcript',
+                subtitle: 'Extrae subtítulos de videos de YouTube',
+                urlLabel: 'URLs',
+                urlPlaceholder: 'Ingrese URLs de YouTube, una por línea\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                optionsLabel: 'Opciones',
+                formatLabel: 'Formato',
+                langLabel: 'Idioma',
+                langAuto: 'Auto',
+                langKo: '한국어',
+                langEn: 'English',
+                langEs: 'Español',
+                langJa: '日本語',
+                langPt: 'Português',
+                denoise: 'Reducir ruido',
+                urlInclude: 'Incluir URL',
+                autoCopy: 'Copia automática de enlaces',
+                autoSubtitleDownload: 'Descarga automática de subtítulos',
+                perFile: 'Por archivo',
+                allAtOnce: 'Todo a la vez',
+                extractBtn: 'Extraer',
+                copyAll: 'Copiar todo',
+                downloadBtn: 'Descargar',
+                copy: 'Copiar',
+                download: 'Descargar',
+                copied: 'Copiado ✓',
+                loading: 'Extrayendo subtítulos...',
+                successCount: ' exitoso',
+                errorCount: ' fallido',
+                timestamps: 'Marcas de tiempo',
+                maxUrlAlert: 'Máximo 20 URLs permitidas.',
+                requestError: 'Error en la solicitud: ',
+                historyLabel: 'Historial reciente',
+                clearHistory: 'Borrar',
+                justNow: 'Justo ahora',
+                minutesAgo: 'm atrás',
+                hoursAgo: 'h atrás',
+                daysAgo: 'd atrás',
+                charCount: ' caracteres',
+                progressOf: ' / ',
+                progressEta: 'Tiempo restante est.',
+                progressDone: '¡Hecho!',
+                progressSec: 's',
+                retryFailed: 'Reintentar fallidos',
+                feedbackTitle: 'Comentarios',
+                feedbackDesc: 'Comparta sus ideas, sugerencias o informe problemas.',
+                feedbackSuggestion: 'Sugerencia',
+                feedbackBug: 'Error',
+                feedbackGeneral: 'General',
+                feedbackPlaceholder: 'Escriba sus comentarios aquí...',
+                feedbackSubmit: 'Enviar',
+                feedbackCancel: 'Cancelar',
+                feedbackDone: '¡Gracias!',
+            },
+            ja: {
+                pageTitle: 'YouTube Transcript',
+                subtitle: 'YouTube動画から字幕を抽出',
+                urlLabel: 'URL',
+                urlPlaceholder: 'YouTube URLを1行に1つずつ入力\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                optionsLabel: 'オプション',
+                formatLabel: '形式',
+                langLabel: '言語',
+                langAuto: '自動',
+                langKo: '한국어',
+                langEn: 'English',
+                langEs: 'Español',
+                langJa: '日本語',
+                langPt: 'Português',
+                denoise: 'ノイズ除去',
+                urlInclude: 'URLを含む',
+                autoCopy: 'リンク自動コピー',
+                autoSubtitleDownload: '字幕自動ダウンロード',
+                perFile: 'ファイル別',
+                allAtOnce: '一括',
+                extractBtn: '抽出',
+                copyAll: 'すべてコピー',
+                downloadBtn: 'ダウンロード',
+                copy: 'コピー',
+                download: 'ダウンロード',
+                copied: 'コピー完了 ✓',
+                loading: '字幕を抽出中...',
+                successCount: ' 成功',
+                errorCount: ' 失敗',
+                timestamps: 'タイムスタンプ',
+                maxUrlAlert: '最大20個のURLまで可能です。',
+                requestError: 'リクエストエラー: ',
+                historyLabel: '最近の履歴',
+                clearHistory: 'クリア',
+                justNow: 'たった今',
+                minutesAgo: '分前',
+                hoursAgo: '時間前',
+                daysAgo: '日前',
+                charCount: ' 文字',
+                progressOf: ' / ',
+                progressEta: '残り時間',
+                progressDone: '完了！',
+                progressSec: '秒',
+                retryFailed: '失敗を再試行',
+                feedbackTitle: 'フィードバック',
+                feedbackDesc: 'ご意見、ご提案、バグ報告をお聞かせください。',
+                feedbackSuggestion: '提案',
+                feedbackBug: 'バグ',
+                feedbackGeneral: 'その他',
+                feedbackPlaceholder: 'フィードバックを入力してください...',
+                feedbackSubmit: '送信',
+                feedbackCancel: 'キャンセル',
+                feedbackDone: 'ありがとうございます！',
+            },
+            pt: {
+                pageTitle: 'YouTube Transcript',
+                subtitle: 'Extraia legendas de vídeos do YouTube',
+                urlLabel: 'URLs',
+                urlPlaceholder: 'Digite URLs do YouTube, uma por linha\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                optionsLabel: 'Opções',
+                formatLabel: 'Formato',
+                langLabel: 'Idioma',
+                langAuto: 'Auto',
+                langKo: '한국어',
+                langEn: 'English',
+                langEs: 'Español',
+                langJa: '日本語',
+                langPt: 'Português',
+                denoise: 'Reduzir ruído',
+                urlInclude: 'Incluir URL',
+                autoCopy: 'Cópia automática de link',
+                autoSubtitleDownload: 'Download automático de legendas',
+                perFile: 'Por arquivo',
+                allAtOnce: 'Tudo de uma vez',
+                extractBtn: 'Extrair',
+                copyAll: 'Copiar tudo',
+                downloadBtn: 'Baixar',
+                copy: 'Copiar',
+                download: 'Baixar',
+                copied: 'Copiado ✓',
+                loading: 'Extraindo legendas...',
+                successCount: ' sucesso',
+                errorCount: ' falha',
+                timestamps: 'Carimbos de tempo',
+                maxUrlAlert: 'Máximo de 20 URLs permitido.',
+                requestError: 'Erro na solicitação: ',
+                historyLabel: 'Histórico recente',
+                clearHistory: 'Limpar',
+                justNow: 'Agora mesmo',
+                minutesAgo: 'm atrás',
+                hoursAgo: 'h atrás',
+                daysAgo: 'd atrás',
+                charCount: ' caracteres',
+                progressOf: ' / ',
+                progressEta: 'Tempo restante est.',
+                progressDone: 'Concluído!',
+                progressSec: 's',
+                retryFailed: 'Repetir falhas',
+                feedbackTitle: 'Feedback',
+                feedbackDesc: 'Compartilhe suas ideias, sugestões ou reporte problemas.',
+                feedbackSuggestion: 'Sugestão',
+                feedbackBug: 'Bug',
+                feedbackGeneral: 'Geral',
+                feedbackPlaceholder: 'Escreva seu feedback aqui...',
+                feedbackSubmit: 'Enviar',
+                feedbackCancel: 'Cancelar',
+                feedbackDone: 'Obrigado!',
             }
         };
 
         function t(key) {
-            return i18n[currentLang][key] || i18n['ko'][key] || key;
+            var lang = getEffectiveLang();
+            return (i18n[lang] && i18n[lang][key]) || i18n['en'][key] || key;
         }
 
         function applyLanguage() {
-            langToggle.querySelector('span').textContent = currentLang.toUpperCase();
+            // Update UI language dropdown trigger
+            var uiLangTrigger = $('#uiLangTrigger');
+            if (uiLangTrigger) {
+                if (currentLang === 'auto') {
+                    uiLangTrigger.querySelector('span').textContent = 'Auto';
+                } else {
+                    var langNames = {
+                        'ko': '한국어',
+                        'en': 'English',
+                        'es': 'Español',
+                        'ja': '日本語',
+                        'pt': 'Português'
+                    };
+                    uiLangTrigger.querySelector('span').textContent = langNames[currentLang] || 'English';
+                }
+            }
 
             // Update all text elements
             $('header h1').textContent = t('pageTitle');
@@ -1109,28 +1592,36 @@
             if (optLabels[0]) optLabels[0].textContent = t('formatLabel');
             if (optLabels[1]) optLabels[1].textContent = t('langLabel');
 
-            // Language toggle buttons
-            var langToggleGroup = document.querySelector('.toggle-group[data-name="language"]');
-            if (langToggleGroup) {
-                var langBtns = langToggleGroup.querySelectorAll('.toggle-btn');
-                if (langBtns[0]) langBtns[0].textContent = t('langAuto');
-                if (langBtns[1]) langBtns[1].textContent = t('langKo');
-                if (langBtns[2]) langBtns[2].textContent = t('langEn');
-            }
+            // Subtitle language dropdown items (Auto는 updateAutoLabel()에서 처리)
+            var langDropdownItems = document.querySelectorAll('#langDropdownMenu .lang-dropdown-item');
+            // index: 0=Auto, 1=English, 2=Español, 3=日本語, 4=Português, 5=한국어
+            if (langDropdownItems[1]) langDropdownItems[1].textContent = t('langEn');
+            if (langDropdownItems[2]) langDropdownItems[2].textContent = t('langEs');
+            if (langDropdownItems[3]) langDropdownItems[3].textContent = t('langJa');
+            if (langDropdownItems[4]) langDropdownItems[4].textContent = t('langPt');
+            if (langDropdownItems[5]) langDropdownItems[5].textContent = t('langKo');
 
             // Checkboxes
             var checkboxSpans = $$('.checkbox-wrapper span:last-child');
             if (checkboxSpans[0]) checkboxSpans[0].textContent = t('denoise');
             if (checkboxSpans[1]) checkboxSpans[1].textContent = t('urlInclude');
-            if (checkboxSpans[2]) checkboxSpans[2].textContent = t('autoCopy');
-            if (checkboxSpans[3]) checkboxSpans[3].textContent = t('autoDownload');
+            if (checkboxSpans[2]) checkboxSpans[2].textContent = t('timestamps');
+            if (checkboxSpans[3]) checkboxSpans[3].textContent = t('autoCopy');
+            if (checkboxSpans[4]) checkboxSpans[4].textContent = t('autoSubtitleDownload');
+
+            // Download mode toggle
+            var downloadModeToggle = $('#downloadModeToggle');
+            if (downloadModeToggle) {
+                var modeBtns = downloadModeToggle.querySelectorAll('.toggle-btn');
+                if (modeBtns[0]) modeBtns[0].textContent = t('perFile');
+                if (modeBtns[1]) modeBtns[1].textContent = t('allAtOnce');
+            }
 
             // Buttons
             extractBtn.textContent = t('extractBtn');
             retryFailedBtn.textContent = t('retryFailed');
             copyAllBtn.textContent = t('copyAll');
-            downloadAllBtn.textContent = t('downloadAll');
-            if (downloadEachBtn) downloadEachBtn.textContent = t('downloadEach');
+            downloadBtn.textContent = t('downloadBtn');
 
             // Progress text is updated dynamically during extraction
 
@@ -1144,14 +1635,44 @@
                 if (!btn.classList.contains('copied')) btn.textContent = t('copy');
             });
             $$('.btn-download').forEach(function(btn) { btn.textContent = t('download'); });
+
+            // Feedback modal
+            var fbTitle = $('#feedbackTitle');
+            var fbDesc = $('#feedbackDesc');
+            var fbText = $('#feedbackText');
+            var fbSubmit = $('#feedbackSubmitBtn');
+            var fbCancel = $('#feedbackCancelBtn');
+            if (fbTitle) fbTitle.textContent = t('feedbackTitle');
+            if (fbDesc) fbDesc.textContent = t('feedbackDesc');
+            if (fbText) fbText.placeholder = t('feedbackPlaceholder');
+            if (fbSubmit && !fbSubmit.disabled) fbSubmit.textContent = t('feedbackSubmit');
+            if (fbCancel) fbCancel.textContent = t('feedbackCancel');
+            var fbTypeBtns = $$('.feedback-type-btn');
+            if (fbTypeBtns[0]) fbTypeBtns[0].textContent = t('feedbackSuggestion');
+            if (fbTypeBtns[1]) fbTypeBtns[1].textContent = t('feedbackBug');
+            if (fbTypeBtns[2]) fbTypeBtns[2].textContent = t('feedbackGeneral');
         }
 
-        langToggle.addEventListener('click', function () {
-            currentLang = currentLang === 'ko' ? 'en' : 'ko';
-            localStorage.setItem(LANG_KEY, currentLang);
-            applyLanguage();
-            // Re-render history with new language
-            renderHistory();
+        // UI Language dropdown
+        var uiLangDropdown = $('#uiLangDropdown');
+        var uiLangTrigger = $('#uiLangTrigger');
+        var uiLangMenu = $('#uiLangMenu');
+
+        uiLangTrigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            uiLangMenu.classList.toggle('show');
+        });
+
+        $$('#uiLangMenu .lang-dropdown-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                currentLang = item.dataset.lang;
+                localStorage.setItem(LANG_KEY, currentLang);
+                $$('#uiLangMenu .lang-dropdown-item').forEach(function (i) { i.classList.remove('active'); });
+                item.classList.add('active');
+                uiLangMenu.classList.remove('show');
+                applyLanguage();
+                renderHistory();
+            });
         });
 
         // Theme toggle
@@ -1190,16 +1711,118 @@
             var lines = urlInput.value.split('\n').filter(function (l) { return l.trim(); });
             var count = lines.length;
             if (!urlInput.value.trim()) count = 0;
-            urlCount.textContent = count + ' / 50';
+            urlCount.textContent = count + ' / 20';
             urlCount.className = 'url-count';
             if (count > 0) urlCount.classList.add('has-urls');
-            if (count > 50) urlCount.classList.add('limit');
+            if (count > 20) urlCount.classList.add('limit');
         }
+
+        // 붙여넣기 시 URL 자동 분리 + 플레이리스트 자동 확장
+        urlInput.addEventListener('paste', function (e) {
+            setTimeout(async function () {
+                var text = urlInput.value;
+                // YouTube URL 패턴으로 분리 (http/https 앞에서 줄바꿈)
+                var separated = text.replace(/(https?:\/\/)/g, '\n$1').trim();
+                // 빈 줄 제거하고 정리
+                var lines = separated.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l; });
+                var cleaned = lines.join('\n');
+                if (cleaned !== text) {
+                    urlInput.value = cleaned;
+                }
+                updateUrlCount();
+
+                // 플레이리스트 URL 감지 및 확장
+                var currentLines = urlInput.value.split('\n').map(function (l) { return l.trim(); }).filter(function (l) { return l; });
+                var hasPlaylist = currentLines.some(function (l) { return /[?&]list=/.test(l); });
+                if (hasPlaylist) {
+                    var expanded = [];
+                    for (var i = 0; i < currentLines.length; i++) {
+                        var line = currentLines[i];
+                        if (/[?&]list=/.test(line) && !/[?&]v=/.test(line)) {
+                            // Pure playlist URL - resolve it
+                            try {
+                                var resp = await fetch('/api/playlist', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ url: line }),
+                                });
+                                var data = await resp.json();
+                                if (data.urls && data.urls.length > 0) {
+                                    expanded = expanded.concat(data.urls);
+                                } else {
+                                    expanded.push(line);
+                                }
+                            } catch (err) {
+                                expanded.push(line);
+                            }
+                        } else {
+                            expanded.push(line);
+                        }
+                    }
+                    if (expanded.length > currentLines.length) {
+                        urlInput.value = expanded.join('\n');
+                        updateUrlCount();
+                    }
+                }
+            }, 0);
+        });
 
         urlInput.addEventListener('input', updateUrlCount);
         updateUrlCount();
 
-        // Toggle groups
+        // Language dropdown
+        var langDropdown = $('#langDropdown');
+        var langDropdownTrigger = $('#langDropdownTrigger');
+        var langDropdownMenu = $('#langDropdownMenu');
+
+        langDropdownTrigger.addEventListener('click', function (e) {
+            e.stopPropagation();
+            langDropdownMenu.classList.toggle('show');
+        });
+
+        $$('.lang-dropdown-item').forEach(function (item) {
+            item.addEventListener('click', function () {
+                currentLanguage = item.dataset.value;
+                if (item.dataset.value === 'auto') {
+                    langDropdownTrigger.textContent = 'Auto';
+                } else {
+                    langDropdownTrigger.textContent = item.textContent;
+                }
+                $$('.lang-dropdown-item').forEach(function (i) { i.classList.remove('active'); });
+                item.classList.add('active');
+                langDropdownMenu.classList.remove('show');
+            });
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function (e) {
+            if (langDropdownMenu && !langDropdown.contains(e.target)) {
+                langDropdownMenu.classList.remove('show');
+            }
+            if (uiLangMenu && !uiLangDropdown.contains(e.target)) {
+                uiLangMenu.classList.remove('show');
+            }
+        });
+
+        // Auto 라벨은 항상 "Auto"로 표시
+        function updateAutoLabel() {
+            var autoItem = document.querySelector('.lang-dropdown-item[data-value="auto"]');
+            if (autoItem) {
+                autoItem.textContent = 'Auto';
+            }
+        }
+
+        // Auto download checkbox - show/hide download mode toggle
+        var downloadModeToggle = $('#downloadModeToggle');
+        autoDownloadCheckbox.addEventListener('change', function () {
+            if (autoDownloadCheckbox.checked) {
+                downloadModeToggle.classList.add('show');
+            } else {
+                downloadModeToggle.classList.remove('show');
+            }
+        });
+
+        // Toggle groups (format and downloadMode)
         $$('.toggle-group').forEach(function (group) {
             var name = group.dataset.name;
             group.querySelectorAll('.toggle-btn').forEach(function (btn) {
@@ -1208,8 +1831,14 @@
                         b.classList.remove('active');
                     });
                     btn.classList.add('active');
-                    if (name === 'format') currentFormat = btn.dataset.value;
-                    if (name === 'language') currentLanguage = btn.dataset.value;
+                    if (name === 'format') {
+                        currentFormat = btn.dataset.value;
+                        // Show timestamp option only for text format
+                        if (timestampOption) {
+                            timestampOption.style.display = (currentFormat === 'text') ? '' : 'none';
+                        }
+                    }
+                    if (name === 'downloadMode') downloadMode = btn.dataset.value;
                 });
             });
         });
@@ -1230,7 +1859,7 @@
 
             var urls = text.split('\n').map(function (u) { return u.trim(); }).filter(function (u) { return u; });
             if (urls.length === 0) return;
-            if (urls.length > 50) {
+            if (urls.length > 20) {
                 alert(t('maxUrlAlert'));
                 return;
             }
@@ -1310,6 +1939,7 @@
                             language: currentLanguage,
                             denoise: denoiseCheckbox.checked,
                             format: currentFormat,
+                            timestamps: timestampsCheckbox.checked,
                         }),
                     })
                     .then(function(response) { return response.json(); })
@@ -1380,7 +2010,11 @@
 
             // Auto download
             if (autoDownloadCheckbox.checked && successCount > 0) {
-                doDownloadAll();
+                if (downloadMode === 'combined') {
+                    doDownloadAll();
+                } else {
+                    doDownloadEach();
+                }
             }
 
             extractBtn.disabled = false;
@@ -1479,7 +2113,7 @@
             errorDiv.innerHTML =
                 '<div class="result-card-content">' + escapeHtml(msg) + '</div>' +
                 '<button class="btn btn-primary" style="margin-top:16px" onclick="document.querySelector(\'#extractBtn\').click()">' +
-                (currentLang === 'ko' ? '다시 시도' : 'Retry') + '</button>';
+                (getEffectiveLang() === 'ko' ? '다시 시도' : 'Retry') + '</button>';
             resultsList.appendChild(errorDiv);
         }
 
@@ -1612,13 +2246,26 @@
             }
         }
 
+        function getFileExt() {
+            if (currentFormat === 'json') return 'json';
+            if (currentFormat === 'srt') return 'srt';
+            if (currentFormat === 'vtt') return 'vtt';
+            return 'txt';
+        }
+
+        function getMimeType() {
+            if (currentFormat === 'json') return 'application/json';
+            if (currentFormat === 'srt') return 'application/x-subrip';
+            if (currentFormat === 'vtt') return 'text/vtt';
+            return 'text/plain';
+        }
+
         function downloadResult(index) {
             var result = currentResults.results[index];
             var text = getResultText(result);
-            var ext = currentFormat === 'json' ? 'json' : 'txt';
+            var ext = getFileExt();
             var filename = (result.video_id || 'transcript') + '.' + ext;
-            var mimeType = currentFormat === 'json' ? 'application/json' : 'text/plain';
-            downloadFile(filename, text, mimeType);
+            downloadFile(filename, text, getMimeType());
         }
 
         // Copy all
@@ -1641,6 +2288,11 @@
         function doDownloadAll() {
             if (!currentResults) return;
             var successResults = currentResults.results.filter(function (r) { return !r.error; });
+            // SRT/VTT: combined doesn't make sense, fallback to per-file
+            if (currentFormat === 'srt' || currentFormat === 'vtt') {
+                doDownloadEach();
+                return;
+            }
             if (currentFormat === 'json') {
                 var includeMetadata = metadataCheckbox.checked;
                 var data = successResults.map(function (r) {
@@ -1656,20 +2308,26 @@
             }
         }
 
-        downloadAllBtn.addEventListener('click', doDownloadAll);
+        // Download button - respects download mode
+        downloadBtn.addEventListener('click', function () {
+            if (downloadMode === 'combined') {
+                doDownloadAll();
+            } else {
+                doDownloadEach();
+            }
+        });
 
         // Download each (individual files)
-        downloadEachBtn.addEventListener('click', function () {
+        function doDownloadEach() {
             if (!currentResults) return;
             var successResults = currentResults.results.filter(function (r) { return !r.error; });
             successResults.forEach(function (r) {
                 var text = getResultText(r);
-                var ext = currentFormat === 'json' ? 'json' : 'txt';
+                var ext = getFileExt();
                 var filename = (r.video_id || 'transcript') + '.' + ext;
-                var mimeType = currentFormat === 'json' ? 'application/json' : 'text/plain';
-                downloadFile(filename, text, mimeType);
+                downloadFile(filename, text, getMimeType());
             });
-        });
+        }
 
         // Retry failed
         retryFailedBtn.addEventListener('click', async function () {
@@ -1703,6 +2361,7 @@
                                     language: currentLanguage,
                                     denoise: denoiseCheckbox.checked,
                                     format: currentFormat,
+                                    timestamps: timestampsCheckbox.checked,
                                 }),
                             })
                             .then(function (response) { return response.json(); })
@@ -1866,7 +2525,9 @@
             if (hours < 24) return hours + t('hoursAgo');
             var days = Math.floor(hours / 24);
             if (days < 7) return days + t('daysAgo');
-            return d.toLocaleDateString(currentLang === 'ko' ? 'ko-KR' : 'en-US');
+            var effLang = getEffectiveLang();
+            var localeMap = { 'ko': 'ko-KR', 'en': 'en-US', 'es': 'es-ES', 'ja': 'ja-JP', 'pt': 'pt-BR' };
+            return d.toLocaleDateString(localeMap[effLang] || 'en-US');
         }
 
         clearHistoryBtn.addEventListener('click', function () {
@@ -1879,6 +2540,92 @@
 
         // Apply language on load
         applyLanguage();
+
+        updateAutoLabel();
+
+        // Feedback modal
+        var feedbackBtn = $('#feedbackBtn');
+        var feedbackOverlay = $('#feedbackOverlay');
+        var feedbackText = $('#feedbackText');
+        var feedbackSubmitBtn = $('#feedbackSubmitBtn');
+        var feedbackCancelBtn = $('#feedbackCancelBtn');
+        var feedbackCharCount = $('#feedbackCharCount');
+        var feedbackType = 'suggestion';
+
+        feedbackBtn.addEventListener('click', function () {
+            feedbackOverlay.classList.add('show');
+            feedbackText.focus();
+        });
+
+        feedbackCancelBtn.addEventListener('click', function () {
+            feedbackOverlay.classList.remove('show');
+            feedbackText.value = '';
+            feedbackCharCount.textContent = '0';
+        });
+
+        feedbackOverlay.addEventListener('click', function (e) {
+            if (e.target === feedbackOverlay) {
+                feedbackOverlay.classList.remove('show');
+            }
+        });
+
+        feedbackText.addEventListener('input', function () {
+            feedbackCharCount.textContent = feedbackText.value.length;
+        });
+
+        $$('.feedback-type-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                $$('.feedback-type-btn').forEach(function (b) { b.classList.remove('active'); });
+                btn.classList.add('active');
+                feedbackType = btn.dataset.type;
+            });
+        });
+
+        feedbackSubmitBtn.addEventListener('click', async function () {
+            var msg = feedbackText.value.trim();
+            if (!msg) return;
+
+            feedbackSubmitBtn.disabled = true;
+            feedbackSubmitBtn.textContent = '...';
+
+            try {
+                var response = await fetch('/api/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: msg, type: feedbackType }),
+                });
+                if (response.ok) {
+                    feedbackText.value = '';
+                    feedbackCharCount.textContent = '0';
+                    feedbackSubmitBtn.textContent = t('feedbackDone') || 'Thank you!';
+                    setTimeout(function () {
+                        feedbackOverlay.classList.remove('show');
+                        feedbackSubmitBtn.textContent = t('feedbackSubmit') || 'Submit';
+                        feedbackSubmitBtn.disabled = false;
+                    }, 1500);
+                } else {
+                    feedbackSubmitBtn.textContent = 'Error';
+                    setTimeout(function () {
+                        feedbackSubmitBtn.textContent = t('feedbackSubmit') || 'Submit';
+                        feedbackSubmitBtn.disabled = false;
+                    }, 1500);
+                }
+            } catch (err) {
+                feedbackSubmitBtn.textContent = 'Error';
+                setTimeout(function () {
+                    feedbackSubmitBtn.textContent = t('feedbackSubmit') || 'Submit';
+                    feedbackSubmitBtn.disabled = false;
+                }, 1500);
+            }
+        });
+
+        // Set active state for UI language dropdown
+        $$('#uiLangMenu .lang-dropdown-item').forEach(function (item) {
+            item.classList.remove('active');
+            if (item.dataset.lang === currentLang) {
+                item.classList.add('active');
+            }
+        });
     })();
     </script>
 </body>

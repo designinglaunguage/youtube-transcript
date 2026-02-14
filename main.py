@@ -101,8 +101,18 @@ class TranscriptRequest(BaseModel):
     urls: list[str]
     language: str = "auto"
     denoise: bool = False
-    format: str = "text"
+    format: str = "text"  # text, json, srt, vtt
     keep_newlines: bool = False
+    timestamps: bool = False
+
+
+class PlaylistRequest(BaseModel):
+    url: str
+
+
+class FeedbackRequest(BaseModel):
+    message: str
+    type: str = "general"
 
 
 def extract_video_id(url: str) -> str | None:
@@ -163,19 +173,64 @@ def denoise_text(text: str) -> str:
     return "\n".join(result)
 
 
+def _format_ts_short(seconds: float) -> str:
+    m = int(seconds // 60)
+    s = int(seconds % 60)
+    return f"{m}:{s:02d}"
+
+
+def _format_ts_srt(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def _format_ts_vtt(seconds: float) -> str:
+    h = int(seconds // 3600)
+    m = int((seconds % 3600) // 60)
+    s = int(seconds % 60)
+    ms = int((seconds % 1) * 1000)
+    return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+def _format_srt(entries: list[dict]) -> str:
+    lines = []
+    for i, e in enumerate(entries, 1):
+        start = _format_ts_srt(e["start"])
+        end = _format_ts_srt(e["start"] + e["duration"])
+        lines.append(str(i))
+        lines.append(f"{start} --> {end}")
+        lines.append(e["text"])
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _format_vtt(entries: list[dict]) -> str:
+    lines = ["WEBVTT", ""]
+    for e in entries:
+        start = _format_ts_vtt(e["start"])
+        end = _format_ts_vtt(e["start"] + e["duration"])
+        lines.append(f"{start} --> {end}")
+        lines.append(e["text"])
+        lines.append("")
+    return "\n".join(lines)
+
+
 def _format_error(error_msg: str) -> str:
     if "No transcripts" in error_msg or "Could not retrieve" in error_msg:
-        return f"자막을 찾을 수 없습니다. ({error_msg[:200]})"
+        return f"No subtitles found. ({error_msg[:200]})"
     elif "disabled" in error_msg.lower():
-        return "이 영상은 자막이 비활성화되어 있습니다."
+        return "Subtitles are disabled for this video."
     elif "unavailable" in error_msg.lower():
-        return "영상을 찾을 수 없습니다."
+        return "Video not found."
     return error_msg
 
 
-def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, keep_newlines: bool = False) -> dict:
+def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, keep_newlines: bool = False, timestamps: bool = False) -> dict:
     if language == "auto":
-        languages = ["ko", "en"]
+        languages = ["en", "ko", "ja", "es", "pt"]
     else:
         languages = [language]
 
@@ -184,33 +239,43 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
         apis_to_try.append(("cookies", _yt_api_cookies))
 
     def _process_result(data):
+        entries = [
+            {"text": e.text, "start": e.start, "duration": e.duration}
+            for e in data
+        ]
+        if denoise:
+            deduped = []
+            prev_text = None
+            for entry in entries:
+                txt = entry["text"].strip()
+                if txt in KOREAN_FILLERS or NOISE_PATTERN.match(txt):
+                    continue
+                if txt == prev_text:
+                    continue
+                if txt:
+                    entry["text"] = txt
+                    deduped.append(entry)
+                    prev_text = txt
+            entries = deduped
+
         if fmt == "json":
-            entries = [
-                {"text": e.text, "start": e.start, "duration": e.duration}
-                for e in data
-            ]
-            if denoise:
-                deduped = []
-                prev_text = None
-                for entry in entries:
-                    t = entry["text"].strip()
-                    if t in KOREAN_FILLERS or NOISE_PATTERN.match(t):
-                        continue
-                    if t == prev_text:
-                        continue
-                    if t:
-                        entry["text"] = t
-                        deduped.append(entry)
-                        prev_text = t
-                entries = deduped
             return {"transcript": entries, "error": None}
-        else:
-            separator = "\n" if keep_newlines else " "
-            text = separator.join(e.text for e in data)
-            if denoise:
-                text = denoise_text(text)
-            if not keep_newlines:
-                text = " ".join(text.split())
+        elif fmt == "srt":
+            return {"transcript": _format_srt(entries), "error": None}
+        elif fmt == "vtt":
+            return {"transcript": _format_vtt(entries), "error": None}
+        else:  # text
+            if timestamps:
+                lines = []
+                for e in entries:
+                    ts = _format_ts_short(e["start"])
+                    lines.append("[" + ts + "] " + e["text"])
+                text = "\n".join(lines)
+            else:
+                separator = "\n" if keep_newlines else " "
+                text = separator.join(e["text"] for e in entries)
+                if not keep_newlines:
+                    text = " ".join(text.split())
             return {"transcript": text, "error": None}
 
     max_retries = 4
@@ -267,17 +332,17 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
 
 @app.post("/api/transcripts")
 async def get_transcripts(request: TranscriptRequest):
-    if len(request.urls) > 50:
+    if len(request.urls) > 20:
         return JSONResponse(
             status_code=400,
-            content={"error": "최대 50개의 URL만 처리할 수 있습니다."},
+            content={"error": "Maximum 20 URLs allowed."},
         )
 
     urls = [u.strip() for u in request.urls if u.strip()]
     if not urls:
         return JSONResponse(
             status_code=400,
-            content={"error": "URL을 하나 이상 입력해주세요."},
+            content={"error": "Please enter at least one URL."},
         )
 
     loop = asyncio.get_event_loop()
@@ -290,7 +355,7 @@ async def get_transcripts(request: TranscriptRequest):
                 "video_id": None,
                 "title": None,
                 "transcript": None,
-                "error": "유효하지 않은 YouTube URL입니다.",
+                "error": "Invalid YouTube URL.",
             }
 
         async with _fetch_semaphore:
@@ -303,6 +368,7 @@ async def get_transcripts(request: TranscriptRequest):
                     request.denoise,
                     request.format,
                     request.keep_newlines,
+                    request.timestamps,
                 ),
                 loop.run_in_executor(_executor, _fetch_title, video_id),
             )
@@ -326,6 +392,71 @@ async def get_transcripts(request: TranscriptRequest):
         "success_count": success_count,
         "error_count": error_count,
     }
+
+
+def _resolve_playlist(url: str) -> list[str]:
+    """Extract video IDs from a YouTube playlist URL."""
+    match = re.search(r'[?&]list=([a-zA-Z0-9_-]+)', url)
+    if not match:
+        return []
+    playlist_id = match.group(1)
+    try:
+        playlist_url = f"https://www.youtube.com/playlist?list={playlist_id}"
+        req = urllib.request.Request(playlist_url, headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        })
+        with urllib.request.urlopen(req, timeout=15) as response:
+            html = response.read().decode('utf-8')
+        video_ids = list(dict.fromkeys(re.findall(r'"videoId":"([a-zA-Z0-9_-]{11})"', html)))
+        return video_ids
+    except Exception as e:
+        logger.warning(f"Failed to resolve playlist {playlist_id}: {e}")
+        return []
+
+
+@app.post("/api/playlist")
+async def resolve_playlist(request: PlaylistRequest):
+    loop = asyncio.get_event_loop()
+    video_ids = await loop.run_in_executor(_executor, _resolve_playlist, request.url)
+    if not video_ids:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Could not resolve playlist. It may be private or empty."},
+        )
+    return {
+        "video_ids": video_ids,
+        "urls": [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids],
+        "count": len(video_ids),
+    }
+
+
+@app.post("/api/feedback")
+async def submit_feedback(request: FeedbackRequest):
+    if not request.message.strip():
+        return JSONResponse(status_code=400, content={"error": "Empty feedback"})
+    if len(request.message) > 2000:
+        return JSONResponse(status_code=400, content={"error": "Feedback too long (max 2000 chars)"})
+
+    feedback_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "feedback.json")
+    feedbacks = []
+    if os.path.exists(feedback_path):
+        try:
+            with open(feedback_path, "r", encoding="utf-8") as f:
+                feedbacks = json.load(f)
+        except Exception:
+            feedbacks = []
+
+    from datetime import datetime, timezone
+    feedbacks.append({
+        "message": request.message.strip(),
+        "type": request.type,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+
+    with open(feedback_path, "w", encoding="utf-8") as f:
+        json.dump(feedbacks, f, ensure_ascii=False, indent=2)
+
+    return {"success": True}
 
 
 @app.get("/")
