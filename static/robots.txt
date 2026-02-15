@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Crawl delay for respectful crawling
+Crawl-delay: 1
+
+# Sitemap location
+Sitemap: https://youtube-transcript-production-7407.up.railway.app/sitemap.xml
