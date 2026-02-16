@@ -18,6 +18,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Transcript Extractor")
+# Version: 1.2.1 - Subtitle Auto Copy Fix
 
 app.add_middleware(
     CORSMiddleware,
