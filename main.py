@@ -33,7 +33,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Transcript Extractor")
-# Version: 3.2.0 - Persistent browser + audio-only extraction + dedicated Playwright thread
+# Version: 3.3.0 - Network intercept + ffmpeg direct URL audio extraction
 
 app.add_middleware(
     CORSMiddleware,
@@ -60,9 +60,9 @@ _ig_semaphore = asyncio.Semaphore(2)  # max 2 concurrent Instagram transcription
 # Check if ffmpeg is available for audio extraction
 _has_ffmpeg = shutil.which('ffmpeg') is not None
 if _has_ffmpeg:
-    logger.info("ffmpeg found - will extract audio before transcription")
+    logger.info("ffmpeg found - will extract audio directly from URL")
 else:
-    logger.info("ffmpeg not found - will send full video to Groq")
+    logger.info("ffmpeg not found - will download full video for Groq")
 
 # --- Proxy support (optional PROXY_URL env var) ---
 _proxy_url = os.environ.get("PROXY_URL", "")
@@ -154,7 +154,6 @@ def extract_video_id(url: str) -> str | None:
     url = url.strip()
     if not url:
         return None
-    # Remove tracking parameters
     url = re.sub(r'[&?](si|feature|utm_\w+|fbclid|gclid)=[^&]*', '', url)
     patterns = [
         r"(?:(?:m\.)?youtube\.com/watch\?.*v=)([a-zA-Z0-9_-]{11})",
@@ -340,17 +339,14 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
                 last_error = str(e)
                 logger.warning(f"[{api_name}] attempt {attempt+1} Failed for {video_id}: {last_error[:200]}")
 
-                # Don't retry if video genuinely has no subtitles
                 if "No transcripts" in last_error or "disabled" in last_error.lower():
                     return {"transcript": None, "error": _format_error(last_error)}
 
-        # Rate limit / transient error: retry after exponential backoff
         if attempt < max_retries - 1:
-            delay = 2 ** (attempt + 1)  # 2s, 4s, 8s
+            delay = 2 ** (attempt + 1)
             logger.info(f"Retrying {video_id} after {delay}s delay (attempt {attempt+1})")
             time.sleep(delay)
 
-    # All language-specific attempts failed - try without language filter
     for api_name, api in apis_to_try:
         try:
             logger.info(f"[{api_name}] Trying without language filter for {video_id}")
@@ -359,7 +355,6 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
         except Exception as e:
             logger.warning(f"[{api_name}] No-lang fallback failed for {video_id}: {str(e)[:200]}")
 
-    # Final fallback: list available transcripts and fetch the best match
     for api_name, api in apis_to_try:
         try:
             logger.info(f"[{api_name}] Listing transcripts for {video_id}")
@@ -380,18 +375,16 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
 
 # ---------------------------------------------------------------------------
 # Instagram video URL extraction: 2-tier cascade
-#   1. Playwright embed page (cookie-free) - renders /p/{shortcode}/embed/
+#   1. Playwright embed page (cookie-free) + network intercept
 #   2. Playwright full page with cookies (fallback for private/restricted)
 #
 # Optimizations:
 #   - Dedicated single-thread executor for Playwright (thread-safety)
-#   - Persistent browser instance (avoids ~1.5s cold-start per request)
-#   - Pre-warmed at import time via the dedicated thread
-#   - domcontentloaded + targeted wait_for_selector (vs networkidle)
-#   - ffmpeg audio extraction before Groq upload (5MB->300KB)
+#   - Persistent browser instance pre-warmed at startup
+#   - Network intercept captures CDN URL before DOM renders (fastest)
+#   - ffmpeg extracts audio directly from URL (skip full video download)
 # ---------------------------------------------------------------------------
 
-# Dedicated single thread for all Playwright operations (Playwright sync API is thread-bound)
 _pw_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='playwright')
 _ig_browser = None
 _ig_pw = None
@@ -417,12 +410,12 @@ def _pw_init_browser():
     return _ig_browser
 
 
-# Pre-warm browser at import time (runs in dedicated Playwright thread)
+# Pre-warm browser at import time
 _pw_executor.submit(_pw_init_browser)
 
 
 def _pw_extract_embed(shortcode):
-    """Run inside _pw_executor thread. Extract video URL from embed page."""
+    """Run inside _pw_executor thread. Extract video URL from embed page via DOM."""
     browser = _pw_init_browser()
     ctx = browser.new_context(
         user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -435,6 +428,7 @@ def _pw_extract_embed(shortcode):
         timeout=15000,
     )
 
+    # Wait for <video src=...> element (typically appears in ~1s with warm browser)
     video_url = None
     try:
         video_el = page.wait_for_selector('video[src]', timeout=5000)
@@ -608,23 +602,43 @@ def _extract_ig_video_url_playwright(url):
         return None, None, f"Browser extraction failed: {str(e)[:200]}"
 
 
-def _extract_audio(video_path, tmpdir):
-    """Extract audio from video using ffmpeg. Returns audio path or original video path."""
-    if not _has_ffmpeg:
-        return video_path
-    audio_path = os.path.join(tmpdir, 'audio.m4a')
-    try:
-        subprocess.run(
-            ['ffmpeg', '-i', video_path, '-vn', '-acodec', 'aac', '-b:a', '64k',
-             '-y', '-loglevel', 'error', audio_path],
-            timeout=15, check=True, capture_output=True,
-        )
-        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 100:
-            logger.info(f"[instagram] Audio extracted: {os.path.getsize(video_path)/1024:.0f}KB -> {os.path.getsize(audio_path)/1024:.0f}KB")
-            return audio_path
-    except Exception as e:
-        logger.warning(f"[instagram] ffmpeg audio extraction failed: {e}, using original video")
-    return video_path
+def _download_audio(video_url, tmpdir):
+    """Download video and prepare audio file for Groq.
+
+    If ffmpeg available: extract audio directly from URL (5MB video -> ~300KB audio).
+    Otherwise: download full video file.
+    """
+    if _has_ffmpeg:
+        audio_path = os.path.join(tmpdir, 'audio.m4a')
+        try:
+            subprocess.run(
+                ['ffmpeg', '-i', video_url,
+                 '-headers', 'User-Agent: Mozilla/5.0\r\nReferer: https://www.instagram.com/\r\n',
+                 '-vn', '-acodec', 'aac', '-b:a', '64k',
+                 '-y', '-loglevel', 'error', audio_path],
+                timeout=20, check=True, capture_output=True,
+            )
+            size = os.path.getsize(audio_path) if os.path.exists(audio_path) else 0
+            if size > 100:
+                logger.info(f"[instagram] Audio extracted from URL: {size/1024:.0f}KB")
+                return audio_path, 'audio.m4a'
+        except Exception as e:
+            logger.warning(f"[instagram] ffmpeg URL extraction failed: {e}")
+
+    # Fallback: download full video
+    video_path = os.path.join(tmpdir, 'video.mp4')
+    r = _requests_mod.get(video_url, headers={
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.instagram.com/',
+    }, timeout=30, stream=True)
+    with open(video_path, 'wb') as f:
+        for chunk in r.iter_content(chunk_size=65536):
+            f.write(chunk)
+    size = os.path.getsize(video_path)
+    if size < 1024:
+        raise ValueError("Downloaded video is too small")
+    logger.info(f"[instagram] Downloaded full video: {size/1024:.0f}KB")
+    return video_path, 'video.mp4'
 
 
 def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=False, timestamps=False):
@@ -633,41 +647,24 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
 
     t0 = time.time()
 
-    # Step 1: Extract video URL (embed page -> Playwright with cookies)
+    # Step 1: Extract video URL
     video_url, title, err = _extract_ig_video_url(url)
     t1 = time.time()
-    logger.info(f"[instagram] Video URL extraction took {t1-t0:.1f}s")
+    logger.info(f"[instagram] Step1 URL extraction: {t1-t0:.1f}s")
     if err:
         return {"transcript": None, "error": err, "title": title}
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Step 2: Download video (streaming)
-        video_path = os.path.join(tmpdir, 'video.mp4')
+        # Step 2: Download/extract audio
         try:
-            r = _requests_mod.get(video_url, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Referer': 'https://www.instagram.com/',
-            }, timeout=30, stream=True)
-            with open(video_path, 'wb') as f:
-                for chunk in r.iter_content(chunk_size=65536):
-                    f.write(chunk)
-            if os.path.getsize(video_path) < 1024:
-                return {"transcript": None, "error": "Downloaded video is too small.", "title": title}
+            upload_path, filename = _download_audio(video_url, tmpdir)
         except Exception as e:
-            return {"transcript": None, "error": f"Video download failed: {str(e)[:200]}", "title": title}
+            return {"transcript": None, "error": f"Audio download failed: {str(e)[:200]}", "title": title}
 
         t2 = time.time()
-        logger.info(f"[instagram] Video download took {t2-t1:.1f}s ({os.path.getsize(video_path)/1024:.0f}KB)")
-
-        # Step 2.5: Extract audio only (much smaller file for Groq upload)
-        upload_path = _extract_audio(video_path, tmpdir)
-        t2b = time.time()
-        if upload_path != video_path:
-            logger.info(f"[instagram] Audio extraction took {t2b-t2:.1f}s")
+        logger.info(f"[instagram] Step2 download/audio: {t2-t1:.1f}s")
 
         # Step 3: Transcribe with Groq Whisper API
-        ext = os.path.splitext(upload_path)[1]
-        filename = f"audio{ext}"
         try:
             with open(upload_path, "rb") as audio_file:
                 result = _groq_client.audio.transcriptions.create(
@@ -681,8 +678,8 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
             return {"transcript": None, "error": f"Transcription failed: {str(e)[:200]}", "title": title}
 
     t3 = time.time()
-    logger.info(f"[instagram] Groq transcription took {t3-t2b:.1f}s")
-    logger.info(f"[instagram] Total pipeline: {t3-t0:.1f}s")
+    logger.info(f"[instagram] Step3 Groq STT: {t3-t2:.1f}s")
+    logger.info(f"[instagram] TOTAL: {t3-t0:.1f}s")
 
     # Step 4: Build entries from segments
     entries = []
@@ -699,7 +696,6 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
     if not entries:
         return {"transcript": "", "error": None, "title": title}
 
-    # Step 5: Denoise
     if denoise_flag:
         deduped = []
         prev_text = None
@@ -715,7 +711,6 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
                 prev_text = txt
         entries = deduped
 
-    # Step 6: Format output
     if fmt == "json":
         return {"transcript": entries, "error": None, "title": title}
     elif fmt == "srt":
@@ -780,7 +775,7 @@ async def get_transcripts(request: TranscriptRequest):
                 "error": result["error"],
             }
 
-        # YouTube (existing logic)
+        # YouTube
         async with _fetch_semaphore:
             result, title = await asyncio.gather(
                 loop.run_in_executor(
