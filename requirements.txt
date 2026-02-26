@@ -1,3 +1,6 @@
 fastapi
 uvicorn[standard]
 youtube-transcript-api
+playwright
+groq
+requests

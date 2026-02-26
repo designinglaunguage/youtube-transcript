@@ -3,18 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Transcript - Free Subtitle Extractor</title>
-    <meta name="description" content="Free YouTube transcript extractor. Download subtitles in multiple formats (TXT, JSON, SRT, VTT) with support for multiple languages including Korean, English, Spanish, Japanese, and Portuguese.">
-    <meta name="keywords" content="YouTube transcript, subtitle extractor, YouTube subtitles, 유튜브 자막, 자막 추출, transcribe YouTube">
-    <meta name="author" content="YouTube Transcript">
+    <title>Transcript Extractor - YouTube & Instagram</title>
+    <meta name="description" content="Free YouTube & Instagram transcript extractor. Download subtitles and transcripts in multiple formats (TXT, JSON, SRT, VTT) with support for multiple languages including Korean, English, Spanish, Japanese, and Portuguese.">
+    <meta name="keywords" content="YouTube transcript, Instagram transcript, subtitle extractor, YouTube subtitles, Instagram reels, 유튜브 자막, 인스타그램 대본, 자막 추출, transcribe YouTube, transcribe Instagram">
+    <meta name="author" content="Transcript Extractor">
     <meta name="robots" content="index, follow">
-    <meta property="og:title" content="YouTube Transcript - Free Subtitle Extractor">
-    <meta property="og:description" content="Extract subtitles from YouTube videos in multiple formats and languages for free.">
+    <meta property="og:title" content="Transcript Extractor - YouTube & Instagram">
+    <meta property="og:description" content="Extract subtitles and transcripts from YouTube and Instagram videos in multiple formats and languages for free.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://youtube-transcript-production-7407.up.railway.app/">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="YouTube Transcript - Free Subtitle Extractor">
-    <meta name="twitter:description" content="Extract subtitles from YouTube videos in multiple formats and languages for free.">
+    <meta name="twitter:title" content="Transcript Extractor - YouTube & Instagram">
+    <meta name="twitter:description" content="Extract subtitles and transcripts from YouTube and Instagram videos in multiple formats and languages for free.">
     <meta name="google-site-verification" content="463xDo0kn86_G1LdLPoNCdJAulfj0AIq4L9ld7kHD2s" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -1102,7 +1102,7 @@
             <div>
                 <p class="section-label">URL 입력</p>
                 <div class="textarea-wrapper">
-                    <textarea id="urlInput" placeholder="YouTube URL을 한 줄에 하나씩 입력하세요&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://youtu.be/..." spellcheck="false"></textarea>
+                    <textarea id="urlInput" placeholder="YouTube 또는 Instagram URL을 한 줄에 하나씩 입력하세요&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://www.instagram.com/reel/..." spellcheck="false"></textarea>
                     <span class="url-count" id="urlCount">0 / 20</span>
                 </div>
             </div>
@@ -1293,10 +1293,10 @@
 
         var i18n = {
             ko: {
-                pageTitle: 'YouTube Transcript',
-                subtitle: 'YouTube 영상의 자막을 추출합니다',
+                pageTitle: 'Transcript Extractor',
+                subtitle: 'YouTube & Instagram 영상의 자막과 대본을 추출합니다',
                 urlLabel: 'URL 입력',
-                urlPlaceholder: 'YouTube URL을 한 줄에 하나씩 입력하세요\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                urlPlaceholder: 'YouTube 또는 Instagram URL을 한 줄에 하나씩 입력하세요\n\nhttps://www.youtube.com/watch?v=...\nhttps://www.instagram.com/reel/...',
                 optionsLabel: '옵션',
                 formatLabel: '형식',
                 langLabel: '언어',
@@ -1347,10 +1347,10 @@
                 feedbackDone: '감사합니다!',
             },
             en: {
-                pageTitle: 'YouTube Transcript',
-                subtitle: 'Extract subtitles from YouTube videos',
+                pageTitle: 'Transcript Extractor',
+                subtitle: 'Extract subtitles & transcripts from YouTube and Instagram',
                 urlLabel: 'URLs',
-                urlPlaceholder: 'Enter YouTube URLs, one per line\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                urlPlaceholder: 'Enter YouTube or Instagram URLs, one per line\n\nhttps://www.youtube.com/watch?v=...\nhttps://www.instagram.com/reel/...',
                 optionsLabel: 'Options',
                 formatLabel: 'Format',
                 langLabel: 'Language',
@@ -1401,10 +1401,10 @@
                 feedbackDone: 'Thank you!',
             },
             es: {
-                pageTitle: 'YouTube Transcript',
-                subtitle: 'Extrae subtítulos de videos de YouTube',
+                pageTitle: 'Transcript Extractor',
+                subtitle: 'Extrae subtítulos y transcripciones de YouTube e Instagram',
                 urlLabel: 'URLs',
-                urlPlaceholder: 'Ingrese URLs de YouTube, una por línea\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                urlPlaceholder: 'Ingrese URLs de YouTube o Instagram, una por línea\n\nhttps://www.youtube.com/watch?v=...\nhttps://www.instagram.com/reel/...',
                 optionsLabel: 'Opciones',
                 formatLabel: 'Formato',
                 langLabel: 'Idioma',
@@ -1455,10 +1455,10 @@
                 feedbackDone: '¡Gracias!',
             },
             ja: {
-                pageTitle: 'YouTube Transcript',
-                subtitle: 'YouTube動画から字幕を抽出',
+                pageTitle: 'Transcript Extractor',
+                subtitle: 'YouTube・Instagramの字幕とトランスクリプトを抽出',
                 urlLabel: 'URL',
-                urlPlaceholder: 'YouTube URLを1行に1つずつ入力\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                urlPlaceholder: 'YouTubeまたはInstagramのURLを1行に1つずつ入力\n\nhttps://www.youtube.com/watch?v=...\nhttps://www.instagram.com/reel/...',
                 optionsLabel: 'オプション',
                 formatLabel: '形式',
                 langLabel: '言語',
@@ -1509,10 +1509,10 @@
                 feedbackDone: 'ありがとうございます！',
             },
             pt: {
-                pageTitle: 'YouTube Transcript',
-                subtitle: 'Extraia legendas de vídeos do YouTube',
+                pageTitle: 'Transcript Extractor',
+                subtitle: 'Extraia legendas e transcrições do YouTube e Instagram',
                 urlLabel: 'URLs',
-                urlPlaceholder: 'Digite URLs do YouTube, uma por linha\n\nhttps://www.youtube.com/watch?v=...\nhttps://youtu.be/...',
+                urlPlaceholder: 'Digite URLs do YouTube ou Instagram, uma por linha\n\nhttps://www.youtube.com/watch?v=...\nhttps://www.instagram.com/reel/...',
                 optionsLabel: 'Opções',
                 formatLabel: 'Formato',
                 langLabel: 'Idioma',
@@ -2059,7 +2059,11 @@
             var idHtml = '';
             if (result.video_id) {
                 var linkText = result.title || result.video_id;
-                idHtml = '<a class="result-card-id" href="https://youtube.com/watch?v=' + encodeURIComponent(result.video_id) + '" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+                if (result.platform === 'instagram') {
+                    idHtml = '<a class="result-card-id" href="https://instagram.com/reel/' + encodeURIComponent(result.video_id) + '/" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+                } else {
+                    idHtml = '<a class="result-card-id" href="https://youtube.com/watch?v=' + encodeURIComponent(result.video_id) + '" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+                }
             } else {
                 idHtml = '<span class="result-card-id">' + escapeHtml(result.url) + '</span>';
             }
@@ -2175,7 +2179,11 @@
                 var idHtml = '';
                 if (result.video_id) {
                     var linkText = result.title || result.video_id;
-                    idHtml = '<a class="result-card-id" href="https://youtube.com/watch?v=' + encodeURIComponent(result.video_id) + '" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+                    if (result.platform === 'instagram') {
+                        idHtml = '<a class="result-card-id" href="https://instagram.com/reel/' + encodeURIComponent(result.video_id) + '/" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+                    } else {
+                        idHtml = '<a class="result-card-id" href="https://youtube.com/watch?v=' + encodeURIComponent(result.video_id) + '" target="_blank" rel="noopener">' + escapeHtml(linkText) + '</a>';
+                    }
                 } else {
                     idHtml = '<span class="result-card-id">' + escapeHtml(result.url) + '</span>';
                 }
