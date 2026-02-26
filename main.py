@@ -463,7 +463,11 @@ def _extract_ig_video_url(url):
 
             page.on('response', _on_resp)
             page.goto(url, wait_until='domcontentloaded', timeout=30000)
-            page.wait_for_timeout(10000)
+            # Wait up to 5s, exit early if video URL found
+            for _ in range(10):
+                page.wait_for_timeout(500)
+                if video_urls:
+                    break
 
             page_title = page.evaluate("""() => {
                 const d = document.querySelector('meta[property="og:description"]');
