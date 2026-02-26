@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Transcript Extractor")
-# Version: 2.0.0 - Instagram Support + Dockerfile
+# Version: 3.0.0 - Cookie-free Instagram extraction (embed page + Playwright fallback)
 
 app.add_middleware(
     CORSMiddleware,
@@ -372,8 +372,89 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
     return {"transcript": None, "error": _format_error(last_error or "Unknown error")}
 
 
+# ---------------------------------------------------------------------------
+# Instagram video URL extraction: 2-tier cascade
+#   1. Playwright embed page (cookie-free) - renders /p/{shortcode}/embed/
+#   2. Playwright full page with cookies (fallback for private/restricted)
+# ---------------------------------------------------------------------------
+
+def _extract_ig_video_url_embed(shortcode):
+    """Extract video URL by rendering Instagram embed page in Playwright (no cookies needed).
+
+    Instagram embed pages are publicly accessible and render video content via
+    JavaScript. We launch a headless browser, wait for the <video> element to
+    appear, and read its src attribute.
+    """
+    from playwright.sync_api import sync_playwright
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(
+                headless=True,
+                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+            )
+            ctx = browser.new_context(
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                viewport={'width': 1280, 'height': 720},
+            )
+            page = ctx.new_page()
+            page.goto(
+                f'https://www.instagram.com/p/{shortcode}/embed/',
+                wait_until='networkidle',
+                timeout=30000,
+            )
+
+            # Look for <video> element with a direct CDN src
+            video_el = page.query_selector('video')
+            video_url = None
+            if video_el:
+                src = video_el.get_attribute('src')
+                if src and src.startswith('http'):
+                    video_url = src
+
+            # Try to get title from embed caption
+            title = None
+            caption_el = page.query_selector('.Caption, .CaptionUsername')
+            if caption_el:
+                title = caption_el.inner_text()[:100]
+            if not title:
+                og_title = page.query_selector('meta[property="og:title"]')
+                if og_title:
+                    title = og_title.get_attribute('content')
+
+            browser.close()
+
+            if video_url:
+                logger.info(f"[embed/playwright] Extracted video URL for {shortcode}")
+                return video_url, title, None
+            return None, title, "No video element found in embed page"
+    except Exception as e:
+        return None, None, f"Embed extraction failed: {str(e)[:200]}"
+
+
 def _extract_ig_video_url(url):
-    """Use Playwright to load Instagram page and capture video_url from GraphQL responses."""
+    """Extract Instagram video URL. Tries cookie-free embed first, falls back to authenticated Playwright."""
+    # Extract shortcode from URL
+    ig_match = re.search(
+        r"(?:instagram\.com|instagr\.am)/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)", url
+    )
+    shortcode = ig_match.group(1) if ig_match else None
+
+    if shortcode:
+        # Method 1: Embed page rendered in Playwright (cookie-free)
+        logger.info(f"[instagram] Trying embed page (no cookies) for {shortcode}")
+        video_url, title, err = _extract_ig_video_url_embed(shortcode)
+        if video_url:
+            return video_url, title, None
+        logger.info(f"[instagram] Embed failed: {err}")
+
+    # Method 2: Playwright with cookies (final fallback)
+    logger.info(f"[instagram] Falling back to Playwright with cookies for {url}")
+    return _extract_ig_video_url_playwright(url)
+
+
+def _extract_ig_video_url_playwright(url):
+    """Use Playwright to load Instagram page with cookies and capture video_url from GraphQL responses."""
     import http.cookiejar as _hcj
     from playwright.sync_api import sync_playwright
 
@@ -436,7 +517,7 @@ def _extract_ig_video_url(url):
         with sync_playwright() as p:
             browser = p.chromium.launch(
                 headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--single-process']
+                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
             )
             ctx = browser.new_context(
                 user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
@@ -490,7 +571,7 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
     if not _groq_client:
         return {"transcript": None, "error": "Instagram transcription not configured (GROQ_API_KEY missing).", "title": None}
 
-    # Step 1: Extract video URL via Playwright browser
+    # Step 1: Extract video URL (embed page → Playwright with cookies)
     video_url, title, err = _extract_ig_video_url(url)
     if err:
         return {"transcript": None, "error": err, "title": title}
@@ -499,8 +580,7 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
         # Step 2: Download video
         video_path = os.path.join(tmpdir, 'video.mp4')
         try:
-            import requests as dl_requests
-            r = dl_requests.get(video_url, headers={
+            r = _requests_mod.get(video_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Referer': 'https://www.instagram.com/',
             }, timeout=60)
