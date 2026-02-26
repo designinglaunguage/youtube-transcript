@@ -31,7 +31,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Transcript Extractor")
-# Version: 1.2.1 - Subtitle Auto Copy Fix
+# Version: 2.0.0 - Instagram Support + Dockerfile
 
 app.add_middleware(
     CORSMiddleware,
