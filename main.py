@@ -2,6 +2,7 @@ import logging
 import json
 import urllib.request
 import tempfile
+import subprocess
 from pathlib import Path
 
 # Load .env file if exists
@@ -26,12 +27,13 @@ from concurrent.futures import ThreadPoolExecutor
 import os
 import urllib.parse
 import requests as _requests_mod
+import shutil
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="YouTube Transcript Extractor")
-# Version: 3.0.0 - Cookie-free Instagram extraction (embed page + Playwright fallback)
+# Version: 3.2.0 - Persistent browser + audio-only extraction + dedicated Playwright thread
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,6 +56,13 @@ else:
     logger.info("GROQ_API_KEY not set, Instagram transcription disabled")
 
 _ig_semaphore = asyncio.Semaphore(2)  # max 2 concurrent Instagram transcriptions
+
+# Check if ffmpeg is available for audio extraction
+_has_ffmpeg = shutil.which('ffmpeg') is not None
+if _has_ffmpeg:
+    logger.info("ffmpeg found - will extract audio before transcription")
+else:
+    logger.info("ffmpeg not found - will send full video to Groq")
 
 # --- Proxy support (optional PROXY_URL env var) ---
 _proxy_url = os.environ.get("PROXY_URL", "")
@@ -355,20 +364,17 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
         try:
             logger.info(f"[{api_name}] Listing transcripts for {video_id}")
             transcript_list = api.list(video_id)
-            # Try to find preferred language transcript
             for lang in languages:
                 for t in transcript_list:
                     if t.language_code == lang:
                         data = t.fetch()
                         return _process_result(data)
-            # Take any available transcript
             for t in transcript_list:
                 data = t.fetch()
                 return _process_result(data)
         except Exception as e:
             logger.warning(f"[{api_name}] List fallback failed for {video_id}: {str(e)[:200]}")
 
-    # All attempts failed
     return {"transcript": None, "error": _format_error(last_error or "Unknown error")}
 
 
@@ -376,111 +382,95 @@ def _fetch_transcript(video_id: str, language: str, denoise: bool, fmt: str, kee
 # Instagram video URL extraction: 2-tier cascade
 #   1. Playwright embed page (cookie-free) - renders /p/{shortcode}/embed/
 #   2. Playwright full page with cookies (fallback for private/restricted)
+#
+# Optimizations:
+#   - Dedicated single-thread executor for Playwright (thread-safety)
+#   - Persistent browser instance (avoids ~1.5s cold-start per request)
+#   - Pre-warmed at import time via the dedicated thread
+#   - domcontentloaded + targeted wait_for_selector (vs networkidle)
+#   - ffmpeg audio extraction before Groq upload (5MB->300KB)
 # ---------------------------------------------------------------------------
 
-def _extract_ig_video_url_embed(shortcode):
-    """Extract video URL by rendering Instagram embed page in Playwright (no cookies needed).
+# Dedicated single thread for all Playwright operations (Playwright sync API is thread-bound)
+_pw_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='playwright')
+_ig_browser = None
+_ig_pw = None
 
-    Instagram embed pages are publicly accessible and render video content via
-    JavaScript. We launch a headless browser, wait for the <video> element to
-    appear, and read its src attribute.
-    """
+
+def _pw_init_browser():
+    """Initialize persistent browser. Must run inside _pw_executor thread."""
+    global _ig_browser, _ig_pw
+    if _ig_browser and _ig_browser.is_connected():
+        return _ig_browser
+    if _ig_pw:
+        try:
+            _ig_pw.stop()
+        except Exception:
+            pass
     from playwright.sync_api import sync_playwright
-
-    try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
-            )
-            ctx = browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                viewport={'width': 1280, 'height': 720},
-            )
-            page = ctx.new_page()
-            page.goto(
-                f'https://www.instagram.com/p/{shortcode}/embed/',
-                wait_until='networkidle',
-                timeout=30000,
-            )
-
-            # Look for <video> element with a direct CDN src
-            video_el = page.query_selector('video')
-            video_url = None
-            if video_el:
-                src = video_el.get_attribute('src')
-                if src and src.startswith('http'):
-                    video_url = src
-
-            # Try to get title from embed caption
-            title = None
-            caption_el = page.query_selector('.Caption, .CaptionUsername')
-            if caption_el:
-                title = caption_el.inner_text()[:100]
-            if not title:
-                og_title = page.query_selector('meta[property="og:title"]')
-                if og_title:
-                    title = og_title.get_attribute('content')
-
-            browser.close()
-
-            if video_url:
-                logger.info(f"[embed/playwright] Extracted video URL for {shortcode}")
-                return video_url, title, None
-            return None, title, "No video element found in embed page"
-    except Exception as e:
-        return None, None, f"Embed extraction failed: {str(e)[:200]}"
-
-
-def _extract_ig_video_url(url):
-    """Extract Instagram video URL. Tries cookie-free embed first, falls back to authenticated Playwright."""
-    # Extract shortcode from URL
-    ig_match = re.search(
-        r"(?:instagram\.com|instagr\.am)/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)", url
+    _ig_pw = sync_playwright().start()
+    _ig_browser = _ig_pw.chromium.launch(
+        headless=True,
+        args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
     )
-    shortcode = ig_match.group(1) if ig_match else None
-
-    if shortcode:
-        # Method 1: Embed page rendered in Playwright (cookie-free)
-        logger.info(f"[instagram] Trying embed page (no cookies) for {shortcode}")
-        video_url, title, err = _extract_ig_video_url_embed(shortcode)
-        if video_url:
-            return video_url, title, None
-        logger.info(f"[instagram] Embed failed: {err}")
-
-    # Method 2: Playwright with cookies (final fallback)
-    logger.info(f"[instagram] Falling back to Playwright with cookies for {url}")
-    return _extract_ig_video_url_playwright(url)
+    logger.info("[instagram] Launched persistent Chromium browser")
+    return _ig_browser
 
 
-def _extract_ig_video_url_playwright(url):
-    """Use Playwright to load Instagram page with cookies and capture video_url from GraphQL responses."""
-    import http.cookiejar as _hcj
-    from playwright.sync_api import sync_playwright
+# Pre-warm browser at import time (runs in dedicated Playwright thread)
+_pw_executor.submit(_pw_init_browser)
 
-    _ig_cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instagram_cookies.txt")
-    if not os.path.exists(_ig_cookie_path):
-        import base64
-        ig_cookies_b64 = os.environ.get("INSTAGRAM_COOKIES_BASE64", "")
-        if ig_cookies_b64:
-            _ig_cookie_path = os.path.join(tempfile.gettempdir(), "instagram_cookies.txt")
-            with open(_ig_cookie_path, "wb") as f:
-                f.write(base64.b64decode(ig_cookies_b64))
-            logger.info("Created instagram_cookies.txt from INSTAGRAM_COOKIES_BASE64 env var")
-    pw_cookies = []
-    if os.path.exists(_ig_cookie_path):
-        cj = _hcj.MozillaCookieJar(_ig_cookie_path)
-        cj.load(ignore_discard=True, ignore_expires=True)
-        for c in cj:
-            cookie = {'name': c.name, 'value': c.value, 'domain': c.domain, 'path': c.path}
-            if c.expires:
-                cookie['expires'] = c.expires
-            if c.secure:
-                cookie['secure'] = True
-            pw_cookies.append(cookie)
 
-    if not pw_cookies:
-        return None, None, "Instagram cookies not found. Please provide instagram_cookies.txt."
+def _pw_extract_embed(shortcode):
+    """Run inside _pw_executor thread. Extract video URL from embed page."""
+    browser = _pw_init_browser()
+    ctx = browser.new_context(
+        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        viewport={'width': 1280, 'height': 720},
+    )
+    page = ctx.new_page()
+    page.goto(
+        f'https://www.instagram.com/p/{shortcode}/embed/',
+        wait_until='domcontentloaded',
+        timeout=15000,
+    )
+
+    video_url = None
+    try:
+        video_el = page.wait_for_selector('video[src]', timeout=5000)
+        if video_el:
+            src = video_el.get_attribute('src')
+            if src and src.startswith('http'):
+                video_url = src
+    except Exception:
+        video_el = page.query_selector('video')
+        if video_el:
+            src = video_el.get_attribute('src')
+            if src and src.startswith('http'):
+                video_url = src
+
+    title = None
+    caption_el = page.query_selector('.Caption, .CaptionUsername')
+    if caption_el:
+        title = caption_el.inner_text()[:100]
+    if not title:
+        og_title = page.query_selector('meta[property="og:title"]')
+        if og_title:
+            title = og_title.get_attribute('content')
+
+    ctx.close()
+    return video_url, title
+
+
+def _pw_extract_with_cookies(url, pw_cookies):
+    """Run inside _pw_executor thread. Extract video URL using cookies + GraphQL intercept."""
+    browser = _pw_init_browser()
+    ctx = browser.new_context(
+        user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        viewport={'width': 1280, 'height': 720},
+    )
+    ctx.add_cookies(pw_cookies)
+    page = ctx.new_page()
 
     video_urls = []
     titles = []
@@ -513,89 +503,175 @@ def _extract_ig_video_url_playwright(url):
             for item in obj:
                 _dig_video(item, vlist, tlist, depth + 1)
 
+    def _on_resp(resp):
+        if resp.status != 200:
+            return
+        u = resp.url
+        if 'graphql' not in u and '/api/v1/' not in u:
+            return
+        ct = resp.headers.get('content-type', '')
+        if 'json' not in ct and 'text' not in ct:
+            return
+        try:
+            body = resp.text()
+            if 'video_url' in body or 'video_versions' in body:
+                _dig_video(json.loads(body), video_urls, titles)
+        except Exception:
+            pass
+
+    page.on('response', _on_resp)
+    page.goto(url, wait_until='domcontentloaded', timeout=15000)
+    for _ in range(10):
+        page.wait_for_timeout(500)
+        if video_urls:
+            break
+
+    page_title = page.evaluate("""() => {
+        const d = document.querySelector('meta[property="og:description"]');
+        if (d) return d.content;
+        const t = document.querySelector('meta[property="og:title"]');
+        if (t) return t.content;
+        return document.title || null;
+    }""")
+    ctx.close()
+
+    title = titles[0] if titles else page_title
+    return video_urls[0] if video_urls else None, title
+
+
+def _extract_ig_video_url_embed(shortcode):
+    """Extract video URL from embed page. Dispatches to dedicated Playwright thread."""
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(
-                headless=True,
-                args=['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu']
-            )
-            ctx = browser.new_context(
-                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-                viewport={'width': 1280, 'height': 720},
-            )
-            ctx.add_cookies(pw_cookies)
-            page = ctx.new_page()
+        future = _pw_executor.submit(_pw_extract_embed, shortcode)
+        video_url, title = future.result(timeout=25)
+        if video_url:
+            logger.info(f"[embed/playwright] Extracted video URL for {shortcode}")
+            return video_url, title, None
+        return None, title, "No video element found in embed page"
+    except Exception as e:
+        return None, None, f"Embed extraction failed: {str(e)[:200]}"
 
-            def _on_resp(resp):
-                if resp.status != 200:
-                    return
-                u = resp.url
-                if 'graphql' not in u and '/api/v1/' not in u:
-                    return
-                ct = resp.headers.get('content-type', '')
-                if 'json' not in ct and 'text' not in ct:
-                    return
-                try:
-                    body = resp.text()
-                    if 'video_url' in body or 'video_versions' in body:
-                        _dig_video(json.loads(body), video_urls, titles)
-                except Exception:
-                    pass
 
-            page.on('response', _on_resp)
-            page.goto(url, wait_until='domcontentloaded', timeout=30000)
-            # Wait up to 5s, exit early if video URL found
-            for _ in range(10):
-                page.wait_for_timeout(500)
-                if video_urls:
-                    break
+def _extract_ig_video_url(url):
+    """Extract Instagram video URL. Tries cookie-free embed first, falls back to authenticated Playwright."""
+    ig_match = re.search(
+        r"(?:instagram\.com|instagr\.am)/(?:reel|reels|p|tv)/([A-Za-z0-9_-]+)", url
+    )
+    shortcode = ig_match.group(1) if ig_match else None
 
-            page_title = page.evaluate("""() => {
-                const d = document.querySelector('meta[property="og:description"]');
-                if (d) return d.content;
-                const t = document.querySelector('meta[property="og:title"]');
-                if (t) return t.content;
-                return document.title || null;
-            }""")
-            browser.close()
+    if shortcode:
+        logger.info(f"[instagram] Trying embed page (no cookies) for {shortcode}")
+        video_url, title, err = _extract_ig_video_url_embed(shortcode)
+        if video_url:
+            return video_url, title, None
+        logger.info(f"[instagram] Embed failed: {err}")
+
+    logger.info(f"[instagram] Falling back to Playwright with cookies for {url}")
+    return _extract_ig_video_url_playwright(url)
+
+
+def _extract_ig_video_url_playwright(url):
+    """Use Playwright with cookies to extract video URL. Dispatches to dedicated Playwright thread."""
+    import http.cookiejar as _hcj
+
+    _ig_cookie_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "instagram_cookies.txt")
+    if not os.path.exists(_ig_cookie_path):
+        import base64
+        ig_cookies_b64 = os.environ.get("INSTAGRAM_COOKIES_BASE64", "")
+        if ig_cookies_b64:
+            _ig_cookie_path = os.path.join(tempfile.gettempdir(), "instagram_cookies.txt")
+            with open(_ig_cookie_path, "wb") as f:
+                f.write(base64.b64decode(ig_cookies_b64))
+            logger.info("Created instagram_cookies.txt from INSTAGRAM_COOKIES_BASE64 env var")
+    pw_cookies = []
+    if os.path.exists(_ig_cookie_path):
+        cj = _hcj.MozillaCookieJar(_ig_cookie_path)
+        cj.load(ignore_discard=True, ignore_expires=True)
+        for c in cj:
+            cookie = {'name': c.name, 'value': c.value, 'domain': c.domain, 'path': c.path}
+            if c.expires:
+                cookie['expires'] = c.expires
+            if c.secure:
+                cookie['secure'] = True
+            pw_cookies.append(cookie)
+
+    if not pw_cookies:
+        return None, None, "Instagram cookies not found. Please provide instagram_cookies.txt."
+
+    try:
+        future = _pw_executor.submit(_pw_extract_with_cookies, url, pw_cookies)
+        video_url, title = future.result(timeout=25)
+        if video_url:
+            return video_url, title, None
+        return None, title, "Could not extract video URL. The video may be private or unavailable."
     except Exception as e:
         return None, None, f"Browser extraction failed: {str(e)[:200]}"
 
-    title = titles[0] if titles else page_title
-    if not video_urls:
-        return None, title, "Could not extract video URL. The video may be private or unavailable."
-    return video_urls[0], title, None
+
+def _extract_audio(video_path, tmpdir):
+    """Extract audio from video using ffmpeg. Returns audio path or original video path."""
+    if not _has_ffmpeg:
+        return video_path
+    audio_path = os.path.join(tmpdir, 'audio.m4a')
+    try:
+        subprocess.run(
+            ['ffmpeg', '-i', video_path, '-vn', '-acodec', 'aac', '-b:a', '64k',
+             '-y', '-loglevel', 'error', audio_path],
+            timeout=15, check=True, capture_output=True,
+        )
+        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 100:
+            logger.info(f"[instagram] Audio extracted: {os.path.getsize(video_path)/1024:.0f}KB -> {os.path.getsize(audio_path)/1024:.0f}KB")
+            return audio_path
+    except Exception as e:
+        logger.warning(f"[instagram] ffmpeg audio extraction failed: {e}, using original video")
+    return video_path
 
 
 def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=False, timestamps=False):
     if not _groq_client:
         return {"transcript": None, "error": "Instagram transcription not configured (GROQ_API_KEY missing).", "title": None}
 
-    # Step 1: Extract video URL (embed page → Playwright with cookies)
+    t0 = time.time()
+
+    # Step 1: Extract video URL (embed page -> Playwright with cookies)
     video_url, title, err = _extract_ig_video_url(url)
+    t1 = time.time()
+    logger.info(f"[instagram] Video URL extraction took {t1-t0:.1f}s")
     if err:
         return {"transcript": None, "error": err, "title": title}
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        # Step 2: Download video
+        # Step 2: Download video (streaming)
         video_path = os.path.join(tmpdir, 'video.mp4')
         try:
             r = _requests_mod.get(video_url, headers={
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                 'Referer': 'https://www.instagram.com/',
-            }, timeout=60)
+            }, timeout=30, stream=True)
             with open(video_path, 'wb') as f:
-                f.write(r.content)
+                for chunk in r.iter_content(chunk_size=65536):
+                    f.write(chunk)
             if os.path.getsize(video_path) < 1024:
                 return {"transcript": None, "error": "Downloaded video is too small.", "title": title}
         except Exception as e:
             return {"transcript": None, "error": f"Video download failed: {str(e)[:200]}", "title": title}
 
+        t2 = time.time()
+        logger.info(f"[instagram] Video download took {t2-t1:.1f}s ({os.path.getsize(video_path)/1024:.0f}KB)")
+
+        # Step 2.5: Extract audio only (much smaller file for Groq upload)
+        upload_path = _extract_audio(video_path, tmpdir)
+        t2b = time.time()
+        if upload_path != video_path:
+            logger.info(f"[instagram] Audio extraction took {t2b-t2:.1f}s")
+
         # Step 3: Transcribe with Groq Whisper API
+        ext = os.path.splitext(upload_path)[1]
+        filename = f"audio{ext}"
         try:
-            with open(video_path, "rb") as audio_file:
+            with open(upload_path, "rb") as audio_file:
                 result = _groq_client.audio.transcriptions.create(
-                    file=("video.mp4", audio_file),
+                    file=(filename, audio_file),
                     model="whisper-large-v3-turbo",
                     response_format="verbose_json",
                     language=None if language == "auto" else language,
@@ -603,6 +679,10 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
                 )
         except Exception as e:
             return {"transcript": None, "error": f"Transcription failed: {str(e)[:200]}", "title": title}
+
+    t3 = time.time()
+    logger.info(f"[instagram] Groq transcription took {t3-t2b:.1f}s")
+    logger.info(f"[instagram] Total pipeline: {t3-t0:.1f}s")
 
     # Step 4: Build entries from segments
     entries = []
