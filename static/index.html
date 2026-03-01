@@ -1103,7 +1103,7 @@
                 <p class="section-label">URL 입력</p>
                 <div class="textarea-wrapper">
                     <textarea id="urlInput" placeholder="YouTube 또는 Instagram URL을 한 줄에 하나씩 입력하세요&#10;&#10;https://www.youtube.com/watch?v=...&#10;https://www.instagram.com/reel/..." spellcheck="false"></textarea>
-                    <span class="url-count" id="urlCount">0 / 20</span>
+                    <span class="url-count" id="urlCount">0 / 100</span>
                 </div>
             </div>
 
@@ -1322,7 +1322,7 @@
                 successCount: '개 성공',
                 errorCount: '개 실패',
                 timestamps: '타임스탬프',
-                maxUrlAlert: '최대 20개의 URL만 입력할 수 있습니다.',
+                maxUrlAlert: '최대 100개의 URL만 입력할 수 있습니다.',
                 requestError: '요청 중 오류가 발생했습니다: ',
                 historyLabel: '최근 추출 기록',
                 clearHistory: '기록 삭제',
@@ -1376,7 +1376,7 @@
                 successCount: ' succeeded',
                 errorCount: ' failed',
                 timestamps: 'Timestamps',
-                maxUrlAlert: 'Maximum 20 URLs allowed.',
+                maxUrlAlert: 'Maximum 100 URLs allowed.',
                 requestError: 'Request failed: ',
                 historyLabel: 'Recent History',
                 clearHistory: 'Clear',
@@ -1430,7 +1430,7 @@
                 successCount: ' exitoso',
                 errorCount: ' fallido',
                 timestamps: 'Marcas de tiempo',
-                maxUrlAlert: 'Máximo 20 URLs permitidas.',
+                maxUrlAlert: 'Máximo 100 URLs permitidas.',
                 requestError: 'Error en la solicitud: ',
                 historyLabel: 'Historial reciente',
                 clearHistory: 'Borrar',
@@ -1484,7 +1484,7 @@
                 successCount: ' 成功',
                 errorCount: ' 失敗',
                 timestamps: 'タイムスタンプ',
-                maxUrlAlert: '最大20個のURLまで可能です。',
+                maxUrlAlert: '最大100個のURLまで可能です。',
                 requestError: 'リクエストエラー: ',
                 historyLabel: '最近の履歴',
                 clearHistory: 'クリア',
@@ -1538,7 +1538,7 @@
                 successCount: ' sucesso',
                 errorCount: ' falha',
                 timestamps: 'Carimbos de tempo',
-                maxUrlAlert: 'Máximo de 20 URLs permitido.',
+                maxUrlAlert: 'Máximo de 100 URLs permitido.',
                 requestError: 'Erro na solicitação: ',
                 historyLabel: 'Histórico recente',
                 clearHistory: 'Limpar',
@@ -1723,10 +1723,10 @@
             var lines = urlInput.value.split('\n').filter(function (l) { return l.trim(); });
             var count = lines.length;
             if (!urlInput.value.trim()) count = 0;
-            urlCount.textContent = count + ' / 20';
+            urlCount.textContent = count + ' / 100';
             urlCount.className = 'url-count';
             if (count > 0) urlCount.classList.add('has-urls');
-            if (count > 20) urlCount.classList.add('limit');
+            if (count > 100) urlCount.classList.add('limit');
         }
 
         // 붙여넣기 시 URL 자동 분리 + 플레이리스트 자동 확장
@@ -1871,7 +1871,7 @@
 
             var urls = text.split('\n').map(function (u) { return u.trim(); }).filter(function (u) { return u; });
             if (urls.length === 0) return;
-            if (urls.length > 20) {
+            if (urls.length > 100) {
                 alert(t('maxUrlAlert'));
                 return;
             }
