@@ -731,10 +731,10 @@ def _fetch_instagram_transcript(url, language, denoise_flag, fmt, keep_newlines=
 
 @app.post("/api/transcripts")
 async def get_transcripts(request: TranscriptRequest):
-    if len(request.urls) > 20:
+    if len(request.urls) > 100:
         return JSONResponse(
             status_code=400,
-            content={"error": "Maximum 20 URLs allowed."},
+            content={"error": "Maximum 100 URLs allowed."},
         )
 
     urls = [u.strip() for u in request.urls if u.strip()]
