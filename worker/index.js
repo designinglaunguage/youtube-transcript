@@ -25,6 +25,9 @@ export default {
       headers.delete('cf-connecting-ip');
       headers.delete('cf-ray');
       headers.delete('cf-ipcountry');
+      // Force uncompressed response so downstream clients can parse it
+      // (Worker strips Content-Encoding header, so compressed bytes become unparsable)
+      headers.set('Accept-Encoding', 'identity');
       // Override User-Agent with a browser UA
       headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
       headers.set('Accept-Language', headers.get('Accept-Language') || 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7');
@@ -51,12 +54,19 @@ export default {
       const response = await fetch(targetUrl, fetchOptions);
       const body = await response.arrayBuffer();
 
+      // Forward essential response headers including Content-Encoding
+      const responseHeaders = {
+        'Content-Type': response.headers.get('Content-Type') || 'text/html',
+        'Access-Control-Allow-Origin': '*',
+      };
+      const contentEncoding = response.headers.get('Content-Encoding');
+      if (contentEncoding) {
+        responseHeaders['Content-Encoding'] = contentEncoding;
+      }
+
       return new Response(body, {
         status: response.status,
-        headers: {
-          'Content-Type': response.headers.get('Content-Type') || 'text/html',
-          'Access-Control-Allow-Origin': '*',
-        }
+        headers: responseHeaders,
       });
     } catch (err) {
       return new Response(JSON.stringify({ error: err.message }), {
