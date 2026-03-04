@@ -120,12 +120,15 @@ try:
         import requests
         _cookie_jar = http.cookiejar.MozillaCookieJar(_cookie_path)
         _cookie_jar.load(ignore_discard=True, ignore_expires=True)
-        _session = requests.Session()
+        if _worker_url:
+            _session = _WorkerProxySession(_worker_url)
+        else:
+            _session = requests.Session()
         _session.cookies = _cookie_jar
-        if _proxy_url:
+        if _proxy_url and not _worker_url:
             _session.proxies = {"http": _proxy_url, "https": _proxy_url}
         _yt_api_cookies = YouTubeTranscriptApi(http_client=_session)
-        logger.info(f"Cookies loaded from {_cookie_path} (used as fallback)")
+        logger.info(f"Cookies loaded from {_cookie_path} (used as fallback, worker={'yes' if _worker_url else 'no'})")
     else:
         logger.info("No cookies found, running without cookies")
 except Exception as e:
