@@ -76,9 +76,11 @@ if _proxy_url:
     logger.info(f"Using proxy: {_proxy_url[:30]}...")
 
 # --- Cloudflare Worker proxy support (WORKER_URL env var) ---
-_worker_url = os.environ.get("WORKER_URL", "").strip()
-if _worker_url:
-    logger.info(f"WORKER_URL detected: {_worker_url[:50]}")
+# NOTE: Disabled on HF Spaces — .workers.dev DNS not resolvable from HF infra
+_worker_url_raw = os.environ.get("WORKER_URL", "").strip()
+_worker_url = ""  # Force direct connection on HF Spaces
+if _worker_url_raw:
+    logger.info(f"WORKER_URL found but disabled for HF Spaces: {_worker_url_raw[:50]}")
 else:
     logger.info("No WORKER_URL set, using direct YouTube connection")
 
