@@ -18,5 +18,7 @@ RUN playwright install --with-deps chromium
 # Layer 3: Application code (changes most frequently)
 COPY . .
 
-# Railway provides PORT env var; default to 8000 for local dev
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# HuggingFace Spaces uses port 7860; Railway uses PORT env var
+EXPOSE 7860
+CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+
