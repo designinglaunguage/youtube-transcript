@@ -413,8 +413,11 @@ def _pw_init_browser():
     return _ig_browser
 
 
-# Pre-warm browser at import time
-_pw_executor.submit(_pw_init_browser)
+# Pre-warm browser at import time (fire-and-forget; failure is non-fatal)
+try:
+    _pw_executor.submit(_pw_init_browser)
+except Exception:
+    logger.warning("[instagram] Failed to submit browser pre-warm task")
 
 
 def _pw_extract_embed(shortcode):
@@ -884,3 +887,9 @@ async def submit_feedback(request: FeedbackRequest):
 @app.get("/")
 async def root():
     return FileResponse("static/index.html")
+
+
+@app.get("/health")
+async def health_check():
+    """Lightweight health check for Railway. No external dependencies."""
+    return {"status": "ok"}

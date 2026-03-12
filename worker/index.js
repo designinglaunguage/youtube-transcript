@@ -25,8 +25,8 @@ export default {
       headers.delete('cf-connecting-ip');
       headers.delete('cf-ray');
       headers.delete('cf-ipcountry');
-      // Force uncompressed response so downstream clients can parse it
-      // (Worker strips Content-Encoding header, so compressed bytes become unparsable)
+      // Force uncompressed response — prevents encoding mismatch
+      // (CF Workers auto-decompress bodies, so forwarding Content-Encoding would lie about the actual encoding)
       headers.set('Accept-Encoding', 'identity');
       // Override User-Agent with a browser UA
       headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
@@ -54,15 +54,15 @@ export default {
       const response = await fetch(targetUrl, fetchOptions);
       const body = await response.arrayBuffer();
 
-      // Forward essential response headers including Content-Encoding
+      // Build clean response headers
+      // CRITICAL: Do NOT forward Content-Encoding — CF Workers auto-decompress
+      // the body, so the raw bytes are always uncompressed regardless of what
+      // YouTube's Content-Encoding header says. Forwarding it would cause
+      // the downstream client to try decompressing already-decompressed data.
       const responseHeaders = {
         'Content-Type': response.headers.get('Content-Type') || 'text/html',
         'Access-Control-Allow-Origin': '*',
       };
-      const contentEncoding = response.headers.get('Content-Encoding');
-      if (contentEncoding) {
-        responseHeaders['Content-Encoding'] = contentEncoding;
-      }
 
       return new Response(body, {
         status: response.status,
