@@ -77,6 +77,10 @@ if _proxy_url:
 
 # --- Cloudflare Worker proxy support (WORKER_URL env var) ---
 _worker_url = os.environ.get("WORKER_URL", "").strip()
+if _worker_url:
+    logger.info(f"WORKER_URL detected: {_worker_url[:50]}")
+else:
+    logger.info("No WORKER_URL set, using direct YouTube connection")
 
 class _WorkerProxySession(_requests_mod.Session):
     """Routes requests through a Cloudflare Worker to bypass YouTube IP blocks."""
