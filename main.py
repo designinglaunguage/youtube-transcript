@@ -65,7 +65,7 @@ else:
     logger.info("ffmpeg not found - will download full video for Groq")
 
 # --- Proxy support (optional PROXY_URL env var) ---
-_proxy_url = os.environ.get("PROXY_URL", "")
+_proxy_url = os.environ.get("PROXY_URL", "").strip()
 _proxy_config = None
 if _proxy_url:
     from youtube_transcript_api.proxies import GenericProxyConfig
@@ -76,7 +76,7 @@ if _proxy_url:
     logger.info(f"Using proxy: {_proxy_url[:30]}...")
 
 # --- Cloudflare Worker proxy support (WORKER_URL env var) ---
-_worker_url = os.environ.get("WORKER_URL", "")
+_worker_url = os.environ.get("WORKER_URL", "").strip()
 
 class _WorkerProxySession(_requests_mod.Session):
     """Routes requests through a Cloudflare Worker to bypass YouTube IP blocks."""
